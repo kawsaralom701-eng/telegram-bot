@@ -5,7 +5,6 @@ import re
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
-    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
@@ -24,6 +23,50 @@ GROUP_IDS = [
     -1004362653651,  # হিন্দি বাংলা সিনেমা গুরু
     -1004300669395,  # সার্ভিস গ্রুপ
     -1003986096637,  # নিউ মুভি chat
+]
+
+# আপনার দেওয়া ৮টি চ্যানেল ও গ্রুপের লিংক দিয়ে সাজানো বাটন লিস্ট
+CHANNEL_BUTTONS = [
+    [
+        InlineKeyboardButton(
+            "🔗 চ্যানেল/গ্রুপ লিংক ১", url="https://t.me/+YVDafDISqdMxNTVl"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            "🕵️‍♂️ CID Season S2", url="https://t.me/CID_Season_S2o"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            "📢 মেইন চ্যানেল", url="https://t.me/kawsaralom76410"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            "🔗 চ্যানেল/গ্রুপ লিংক ৪", url="https://t.me/+L0o2S0oxgeNlN2Q1"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            "🔗 চ্যানেল/গ্রুপ লিংক ৫", url="https://t.me/+wkl-d8aJChtjMGU1"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            "🔗 চ্যানেল/গ্রুপ লিংক ৬", url="https://t.me/+Pb8z-Fv8K6o2NjA1"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            "👤 অফিশিয়াল আইডি/চ্যানেল", url="https://t.me/kawsar7641"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            "🎬 ব্যাকআপ মুভি গ্রুপ", url="https://t.me/Demogroup764"
+        )
+    ],
 ]
 
 # মেমোরি ডাটাবেজ
@@ -91,9 +134,9 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
 
   menu_caption = (
       "🔥 **বিশাল অফার ও বিনোদন জগৎ!** 🔥\n\n✨ **যা যা উপভোগ করতে পারবেন:**\n🔹"
-      " ব্যাচেলর পয়েন্ট নাটক\n🔞 হট ভিডিও (পর্বসহ)\n🎬 হিন্দি ড্রামা ও মুভি\n🎞️ বাংলা"
-      " সিনেমা ও নাটক\n🕵️ সিআইডি নাটক (সকল পর্ব)\n\n👇 **বটের ইনবক্সে গিয়ে"
-      " পছন্দের ক্যাটাগরিতে ক্লিক করুন!**"
+      " ব্যাচেলর পয়েন্ট নাটক\n🔞 হট ভিডিও (সব পর্ব একসাথে)\n🎬 হিন্দি ড্রামা ও মুভি\n🎞️"
+      " বাংলা সিনেমা ও নাটক\n🕵️ সিআইডি নাটক (সকল পর্ব)\n\n👇 **বটের ইনবক্সে গিয়ে"
+      " এক ক্লিকে সব ভিডিও পেতে যেকোনো একটিতে ক্লিক করুন!**"
   )
 
   for group_id in GROUP_IDS:
@@ -143,10 +186,7 @@ async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
   user = message.from_user
   is_admin = user.username and user.username.lower() == ADMIN_USERNAME.lower()
 
-  # টেক্সট অথবা ক্যাপশন চেক করার জন্য
   text = message.text or message.caption or ""
-
-  # লিংক বা টেলিগ্রাম ইউজারনেম চেনার জন্য প্যাটার্ন (http, https, t.me, @username ইত্যাদি)
   has_link = (
       "http://" in text
       or "https://" in text
@@ -196,7 +236,6 @@ async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Error muting user: {e}")
     return
 
-  # ইউজারদের সাধারণ মেসেজগুলো ৩০ মিনিট পর ডিলিট হবে
   if not is_admin:
     asyncio.create_task(
         delete_user_message_after_delay(
@@ -253,10 +292,11 @@ async def receive_channel_video(
       print(f"✅ CID video saved: {original_caption}")
 
 
-# ৪. ইউজার ইনবক্সে আসলে বা `/start` কমান্ড দিলে ক্যাটাগরির লিস্ট দেখানো
+# ৪. ইউজার ইনবক্সে আসলে বা লিংকে ক্লিক করলে এক ক্লিকে সব ভিডিও ৮টি চ্যানেলের লিংক বাটনসহ পাঠিয়ে দেওয়া
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
   user = update.message.from_user
   args = context.args
+  chat_id = update.message.chat_id
 
   cat_display_names = {
       "menu_hot": ("hot", "🔥🔞 হট ভিডিও সমাহার"),
@@ -266,7 +306,6 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
       "menu_cid": ("cid", "🕵️‍♂️🔥 CID নাটকের সকল পর্ব"),
   }
 
-  # যদি ইউজার গ্রুপ থেকে লিংকে ক্লিক করে সরাসরি কোনো ক্যাটাগরিতে আসে
   if args and args[0] in cat_display_names:
     cat_key, cat_title = cat_display_names[args[0]]
     target_list = videos.get(cat_key, [])
@@ -277,20 +316,36 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
       )
       return
 
-    keyboard = []
-    for idx, item in enumerate(target_list):
-      btn_text = item["caption"].split("\n")[0]
-      callback_data = f"getvid_{cat_key}_{idx}"
-      keyboard.append(
-          [InlineKeyboardButton(btn_text, callback_data=callback_data)]
-      )
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        f"📂 **{cat_title}**\n\nনিচে আপনার পছন্দের ভিডিও বা পর্বটিতে ক্লিক"
-        " করুন, সেটি সরাসরি আপনার ইনবক্সে চলে আসবে! 👇",
-        reply_markup=reply_markup,
-        parse_mode="Markdown",
+        f"🚀 **{cat_title}**-এর সমস্ত ভিডিও আপনার ইনবক্সে পাঠানো হচ্ছে,"
+        " একটু অপেক্ষা করুন..."
+    )
+
+    # আপনার ৮টি চ্যানেলের লিংক বাটন প্রস্তুত করা হলো
+    video_markup = InlineKeyboardMarkup(CHANNEL_BUTTONS)
+
+    # এক ক্লিকে ওই ক্যাটাগরির আন্ডারে থাকা সব ভিডিও ক্যাপশন ঠিক রেখে ৮টি লিংক বাটনসহ পাঠিয়ে দেওয়া
+    for item in target_list:
+      try:
+        sent_msg = await context.bot.copy_message(
+            chat_id=chat_id,
+            from_chat_id=PRIVATE_CHANNEL_ID,
+            message_id=item["message_id"],
+            reply_markup=video_markup,
+        )
+
+        # ইনবক্সে পাঠানো প্রতিটি ভিডিওর ওপর ২০ মিনিটের অটো-ডিলিট টাইমার সেট করা
+        asyncio.create_task(
+            delete_inbox_video_after_delay(context, chat_id, sent_msg.message_id)
+        )
+        await asyncio.sleep(0.5)  # টেলিগ্রাম ফ্লাড লিমিট এড়ানোর জন্য সামান্য বিরতি
+      except Exception as e:
+        print(f"Error sending video: {e}")
+
+    await update.message.reply_text(
+        "⏱️ উপরের সমস্ত ভিডিও আপনার ইনবক্সে সফলভাবে পাঠানো হয়েছে। নিরাপত্তা"
+        " বা গোপনীয়তার কারণে প্রতিটি ভিডিও ঠিক **২০ মিনিট পর** ইনবক্স থেকে"
+        " স্বয়ংক্রিয়ভাবে মুছে যাবে।"
     )
     return
 
@@ -299,97 +354,6 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
       "🎉 বটের ইনবক্সে আপনাকে স্বাগতম!\n\nদয়া করে গ্রুপে দেওয়া মেনু থেকে আপনার"
       " পছন্দের ক্যাটাগরিতে ক্লিক করুন।"
   )
-
-
-# ৫. ইনবক্সে ইনলাইন বাটন হ্যান্ডেল করা (ক্যাটাগরি লিস্ট দেখানোর জন্য)
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  query = update.callback_query
-  await query.answer()
-
-  data = query.data
-  if not data.startswith("menu_"):
-    return
-
-  category = data.split("_")[1]
-  target_list = videos.get(category, [])
-
-  cat_display_names = {
-      "hot": "🔥🔞 হট ভিডিও সমাহার",
-      "bachelor": "🎭🔥 ব্যাচেলর পয়েন্ট নাটক",
-      "natok": "🎬🍿 বাংলা সিনেমা ও নাটক",
-      "hindi": "🇮🇳🎥 হিন্দি ড্রামা ও মুভি",
-      "cid": "🕵️‍♂️🔥 CID নাটকের সকল পর্ব",
-  }
-
-  if not target_list:
-    await query.message.reply_text(
-        f"⚠️ এই মুহূর্তে **{cat_display_names.get(category, 'ক্যাটাগরি')}**-তে কোনো"
-        " ভিডিও নেই।"
-    )
-    return
-
-  keyboard = []
-  for idx, item in enumerate(target_list):
-    btn_text = item["caption"].split("\n")[0]
-    callback_data = f"getvid_{category}_{idx}"
-    keyboard.append([InlineKeyboardButton(btn_text, callback_data=callback_data)])
-
-  reply_markup = InlineKeyboardMarkup(keyboard)
-
-  await query.message.reply_text(
-      f"📂 **{cat_display_names.get(category, 'তালিকা')}**\n\nনিচে আপনার"
-      " পছন্দের ভিডিও বা পর্বটিতে ক্লিক করুন, সাথে সাথে ইনবক্সে চলে আসবে! 👇",
-      reply_markup=reply_markup,
-      parse_mode="Markdown",
-  )
-
-
-# ৬. ইউজার নির্দিষ্ট ভিডিওতে ক্লিক করলে সরাসরি ইনবক্সে পাঠানো এবং ২০ মিনিট পর অটো-ডিলিট করা
-async def send_specific_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  query = update.callback_query
-  await query.answer("আপনার ভিডিওটি ইনবক্সে পাঠানো হচ্ছে...")
-
-  data = query.data
-  if not data.startswith("getvid_"):
-    return
-
-  parts = data.split("_")
-  category = parts[1]
-  index = int(parts[2])
-
-  target_list = videos.get(category, [])
-  if index < len(target_list):
-    video_item = target_list[index]
-    try:
-      # সরাসরি ইউজারের ইনবক্সে ভিডিও পাঠানো হচ্ছে
-      sent_msg = await context.bot.copy_message(
-          chat_id=query.message.chat_id,
-          from_chat_id=PRIVATE_CHANNEL_ID,
-          message_id=video_item["message_id"],
-      )
-
-      # ইনবক্সে পাঠানো ভিডিওটি ঠিক ২০ মিনিট (১২০০ সেকেন্ড) পর অটোমেটিক ডিলিট করার টাস্ক
-      asyncio.create_task(
-          delete_inbox_video_after_delay(
-              context, query.message.chat_id, sent_msg.message_id
-          )
-      )
-
-      # ইউজারকে একটি ছোট নোটিফিকেশন দেওয়া যে ভিডিওটি ২০ মিনিট পর ডিলিট হবে
-      await query.message.reply_text(
-          "⏱️ এই ভিডিওটি আপনার ইনবক্সে পাঠানো হয়েছে এবং নিরাপত্তা বা গোপনীয়তার"
-          " কারণে ঠিক **২০ মিনিট পর** ইনবক্স থেকে স্বয়ংক্রিয়ভাবে মুছে যাবে।"
-      )
-
-    except Exception as e:
-      print(f"Error sending video: {e}")
-      await query.message.reply_text(
-          "❌ ভিডিওটি পাঠাতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।"
-      )
-  else:
-    await query.message.reply_text(
-        "⚠️ দুঃখিত, এই ভিডিওটি খুঁজে পাওয়া যায়নি।"
-    )
 
 
 # ইনবক্স থেকে ভিডিও ২০ মিনিট পর ডিলিট করার ফাংশন
@@ -401,7 +365,7 @@ async def delete_inbox_video_after_delay(context, chat_id, message_id):
     pass
 
 
-# ৭. স্ট্যাটাস চেক করার কমান্ড (/status)
+# ৫. স্ট্যাটাস চেক করার কমান্ড (/status)
 async def admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
   user = update.message.from_user
   if not user.username or user.username.lower() != ADMIN_USERNAME.lower():
@@ -420,7 +384,14 @@ async def admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-  application = ApplicationBuilder().token(TOKEN).build()
+  application = (
+      ApplicationBuilder()
+      .token(TOKEN)
+      .read_timeout(30)
+      .write_timeout(30)
+      .connect_timeout(30)
+      .build()
+  )
 
   job_queue = application.job_queue
   job_queue.run_repeating(send_auto_video_menu, interval=60, first=5)
@@ -438,14 +409,10 @@ def main():
       )
   )
 
-  application.add_handler(
-      CallbackQueryHandler(button_handler, pattern="^menu_")
+  print(
+      "Bot is running with 8 Channel Buttons, Original Captions Preserved &"
+      " 20-min Auto-Delete!"
   )
-  application.add_handler(
-      CallbackQueryHandler(send_specific_video, pattern="^getvid_")
-  )
-
-  print("Bot is running with Inbox Delivery, 20-min Auto-Delete & Strict Links!")
   application.run_polling()
 
 

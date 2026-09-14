@@ -187,7 +187,6 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
       " এক ক্লিকে সব ভিডিও পেতে যেকোনো একটিতে ক্লিক করুন!**"
   )
 
-  # টার্গেট ৫টি চ্যানেলে অটো পোস্ট
   for ch in TARGET_CHANNELS:
     try:
       if current_item_id:
@@ -209,7 +208,6 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
       print(f"Error sending menu to channel {ch['id']}: {e}")
 
-  # গ্রুপগুলোতে অটো পোস্ট এবং ৫০ সেকেন্ড পর ডিলিট
   for group_id in GROUP_IDS:
     try:
       if current_item_id:
@@ -244,7 +242,7 @@ async def delete_menu_after_delay(context, chat_id, message_id):
     pass
 
 
-# ৩. লিংক ও ইউজারনেম ফিল্টার সিস্টেম (গ্রুপের জন্য)
+# ৩. শক্তিশালী লিংক, বাটন ও ফরোয়ার্ড ফিল্টার সিস্টেম (গ্রুপের জন্য)
 async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
   if not update.message or update.message.chat_id not in GROUP_IDS:
     return
@@ -261,7 +259,14 @@ async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
       or bool(re.search(r"@\w+", text))
   )
 
-  if not is_admin and has_link:
+  has_button = message.reply_markup and message.reply_markup.inline_keyboard
+  is_forwarded = (
+      message.forward_date is not None
+      or message.forward_from is not None
+      or message.forward_sender_name is not None
+  )
+
+  if not is_admin and (has_link or has_button or is_forwarded):
     try:
       await message.delete()
     except Exception:
@@ -275,8 +280,8 @@ async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
       await context.bot.send_message(
           chat_id=message.chat_id,
           text=(
-              f"@{user.username or user.first_name}, গ্রুপে লিংক বা ইউজারনেম"
-              f" শেয়ার করা নিষিদ্ধ! আপনার ওয়ার্নিং: {count}/3"
+              f"@{user.username or user.first_name}, গ্রুপে লিংক, বাটন বা ফরোয়ার্ড"
+              f" মেসেজ পাঠানো নিষিদ্ধ! আপনার ওয়ার্নিং: {count}/3"
           ),
       )
     else:
@@ -294,7 +299,7 @@ async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=message.chat_id,
             text=(
-                f"@{user.username or user.first_name} ৩ বার লিংক শেয়ার করার"
+                f"@{user.username or user.first_name} ৩ বার নিয়ম অমান্য করার"
                 " কারণে ১ ঘণ্টার জন্য মিউট করা হয়েছে।"
             ),
         )
@@ -319,18 +324,11 @@ async def delete_user_message_after_delay(context, chat_id, message_id):
     pass
 
 
-# ৪. প্রাইভেট চ্যানেল থেকে ভিডিও ও মেনু ক্যাটাগরি অটো-ডিটেক্ট করে সেভ করা
-async def receive_channel_video(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-):
+# হেল্পার ফাংশন: মেসেজ থেকে ক্যাটাগরি প্রসেস করা
+def process_and_store_message(message):
   global menu_items
-  message = update.channel_post or update.effective_message
-  if not message:
-    return
-
   caption = message.caption.lower() if message.caption else ""
 
-  # মেনু পোস্টার চেক (menu1 থেকে menu5)
   if message.photo or message.video:
     if "menu1" in caption:
       menu_items[0] = message.message_id
@@ -348,7 +346,6 @@ async def receive_channel_video(
       menu_items[4] = message.message_id
       return
 
-  # ভিডিও বা ডকুমেন্ট বা ছবি সেভিং লজিক
   if message.video or message.document or message.photo:
     original_caption = message.caption or "নামবিহীন ভিডিও"
     video_data = {
@@ -356,23 +353,30 @@ async def receive_channel_video(
         "caption": original_caption,
     }
 
-    # নির্দিষ্ট ট্যাগ চেক (ব্যাচেলর, নাটক, হিন্দি, সিআইডি)
+    target_list = None
     if "bachelor" in caption:
-      videos["bachelor"].append(video_data)
-      print(f"✅ Bachelor video saved: {original_caption}")
+      target_list = videos["bachelor"]
     elif "natok" in caption:
-      videos["natok"].append(video_data)
-      print(f"✅ Natok video saved: {original_caption}")
+      target_list = videos["natok"]
     elif "hindi" in caption:
-      videos["hindi"].append(video_data)
-      print(f"✅ Hindi video saved: {original_caption}")
+      target_list = videos["hindi"]
     elif "cid" in caption or "#cid" in caption:
-      videos["cid"].append(video_data)
-      print(f"✅ CID video saved: {original_caption}")
+      target_list = videos["cid"]
     else:
-      # হট ভিডিও বা অন্য যেকোনো সাধারণ ভিডিও (যেগুলোতে কোনো ট্যাগ নেই) সরাসরি 'hot'-এ সেভ হবে
-      videos["hot"].append(video_data)
-      print(f"✅ Hot/Direct video saved: {original_caption}")
+      target_list = videos["hot"]
+
+    if not any(v["message_id"] == message.message_id for v in target_list):
+      target_list.append(video_data)
+
+
+# ৪. প্রাইভেট চ্যানেল থেকে নতুন ভিডিও রিসিভ করা
+async def receive_channel_video(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
+  message = update.channel_post or update.effective_message
+  if not message:
+    return
+  process_and_store_message(message)
 
 
 # মূল ভিডিও পাঠানোর কোর ফাংশন
@@ -436,7 +440,6 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
   if args and args[0] in cat_display_names:
     cat_key, cat_title = cat_display_names[args[0]]
 
-    # যদি ইউজার এডমিন না হন, তবে ৫টি চ্যানেলের সাবস্ক্রিপশন চেক করবে
     if not is_admin:
       is_subscribed = await check_user_subscriptions(user.id, context.bot)
       if not is_subscribed:
@@ -460,7 +463,6 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # এডমিন অথবা সাবস্ক্রাইব করা থাকলে সরাসরি ভিডিও দিয়ে দেওয়া হবে
     await deliver_videos_to_user(chat_id, cat_key, cat_title, context)
     return
 
@@ -470,7 +472,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
   )
 
 
-# ৬. সাবস্ক্রাইব চেক বাটন ক্লিক হ্যান্ডলার (Callback Query)
+# ৬. সাবস্ক্রাইব চেক বাটন ক্লিক হ্যান্ডলার
 async def button_callback_handler(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
@@ -500,7 +502,7 @@ async def button_callback_handler(
     else:
       await query.answer(
           "❌ আপনি এখনো সবগুলো চ্যানেলে জয়েন করেননি! দয়া করে সবগুলোতে জয়েন"
-          " করে আবার চেক করুন।",
+          " করে আবার চেক করুন.",
           show_alert=True,
       )
 
@@ -559,8 +561,8 @@ def main():
   )
 
   print(
-      "Bot is fully configured: Hot videos auto-saved without tag, specific tags"
-      " preserved, Force Subscribe active!"
+      "Bot is fully configured with Inline Button & Forward Message blocking in"
+      " groups!"
   )
   application.run_polling()
 

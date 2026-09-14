@@ -1,5 +1,5 @@
-from datetime import timedelta
 import logging
+from datetime import timedelta
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -10,7 +10,7 @@ from telegram.ext import (
 )
 
 # === আপনার কনফিগারেশন তথ্যসমূহ ===
-TOKEN = "7971620957:AAH246ssazEKmF-dDvZwHLtX7QZIsA0deuY"  # নতুন বটের টোকেন
+TOKEN = "8839361164:AAH_Y4F4rKFjWTvsvmiIC_VL2taTxQG9gnc"  # বটের টোকেন
 ADMIN_USERNAME = "kawsar123450"  # আপনার টেলিগ্রাম ইউজারনেম (মালিক)
 
 # আপনার প্রাইভেট চ্যানেল আইডি (মুভি চ্যানেল)
@@ -176,7 +176,7 @@ async def receive_channel_video(
       print(f"✅ CID video saved! Message ID: {message.message_id}")
 
 
-# ৪. ইউজার ইনবক্সে আসলে ফরোয়ার্ডের বদলে কপি করে ভিডিও পাঠানো
+# ৪. ইউজার ইনবক্সে আসলে ফরোয়ার্ডের বদলে কপি করে ভিডিও পাঠানো (চ্যানেলের নাম হাইড থাকবে)
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
   user = update.message.from_user
   args = context.args
@@ -217,6 +217,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
   if target_list:
     latest_msg_id = target_list[-1]
     try:
+      # forward_message এর বদলে copy_message ব্যবহার করা হয়েছে যাতে চ্যানেলের নাম না দেখায়
       await context.bot.copy_message(
           chat_id=user.id,
           from_chat_id=PRIVATE_CHANNEL_ID,
@@ -254,9 +255,11 @@ async def admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
   application = ApplicationBuilder().token(TOKEN).build()
 
+  # প্রতি ১ মিনিট পর পর গ্রুপে মেনু পাঠানোর লুপ
   job_queue = application.job_queue
   job_queue.run_repeating(send_auto_video_menu, interval=60, first=5)
 
+  # হ্যান্ডলার রেজিস্ট্রেশন
   application.add_handler(CommandHandler("start", start_handler))
   application.add_handler(CommandHandler("status", admin_status))
   application.add_handler(

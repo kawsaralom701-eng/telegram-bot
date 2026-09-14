@@ -1,7 +1,6 @@
 import asyncio
 from datetime import timedelta
 import logging
-import re
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -16,17 +15,17 @@ from telegram.ext import (
 TOKEN = "7971620957:AAH246ssazEKmF-dDvZwHLtX7QZIsA0deuY"
 ADMIN_USERNAME = "kawsar123450"
 
-# আপনার প্রাইভেট চ্যানেল আইডি (যেখান থেকে ভিডিও ও পোস্টার সংগ্রহ করবে)
+# প্রাইভেট চ্যানেল আইডি (যেখান থেকে ভিডিও ও পোস্টার সংগ্রহ করবে)
 PRIVATE_CHANNEL_ID = -1003967128934
 
-# ৫টি চ্যানেল এবং ১টি গ্রুপসহ মোট ৬টি টার্গেট আইডি (একযোগে একই সময়ে মেসেজ পাঠানোর জন্য)
+# টার্গেট চ্যাটসমূহ (যেখানে মেনু পোস্ট পাঠানো হবে)
 TARGET_CHATS = [
-    -1004484108921,  # মুভি সিআইডি ব্যাচালার নাটক চ্যানেল
-    -1004296342087,  # CID Bangla Season 2
-    -1004395034930,  # হট ভিডিও চ্যানেল
-    -1004302390586,  # তানিয়া আক্তার হট ভিডিও চ্যানেল
-    -1003067466801,  # নিউ মুভি চ্যানেল
-    -1004362653651,  # মূল গ্রুপ আইডি
+    -1004484108921,
+    -1004296342087,
+    -1004395034930,
+    -1004302390586,
+    -1003067466801,
+    -1004362653651,
 ]
 
 TARGET_CHANNELS = [
@@ -57,7 +56,7 @@ TARGET_CHANNELS = [
     },
 ]
 
-# ভিডিওর নিচে আপনার দেওয়া ৫টি চ্যানেল ও গ্রুপের লিংকযুক্ত বাটনসমূহ
+# ভিডিওর নিচের সিঙ্গেল এবং গোছানো বাটন লেআউট
 CHANNEL_BUTTONS = [
     [
         InlineKeyboardButton(
@@ -76,16 +75,6 @@ CHANNEL_BUTTONS = [
     ],
     [
         InlineKeyboardButton(
-            "👤 তানিয়া আক্তার হট ভিডিও", url="https://t.me/CID_Season_S2o"
-        )
-    ],
-    [
-        InlineKeyboardButton(
-            "🎭 মুভি সিআইডি ব্যাচেলর নাটক", url="https://t.me/Demogroup764"
-        )
-    ],
-    [
-        InlineKeyboardButton(
             "👥 মূল গ্রুপ", url="https://t.me/kawsaralom76410"
         )
     ],
@@ -93,7 +82,7 @@ CHANNEL_BUTTONS = [
 
 warnings = {}
 videos = {
-    "hot": [],  # ক্যাপশন ছাড়া ভিডিওগুলো এখানে জমা হবে
+    "hot": [],
     "bachelor": [],
     "natok": [],
     "bangla_natok": [],
@@ -124,7 +113,16 @@ async def check_user_subscriptions(user_id, bot) -> bool:
   return False
 
 
-# প্রতি দেড় ঘণ্টা (৫৪০০ সেকেন্ড) পর পর পুরনো মেসেজ ডিলিট করে নতুন ১টি করে মেনু পোস্ট পাঠানোর ফাংশন
+# নির্দিষ্ট সময় পর মেসেজ ডিলিট করার ফাংশন
+async def delete_message_after_delay(context, chat_id, message_id, delay_seconds):
+  await asyncio.sleep(delay_seconds)
+  try:
+    await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+  except Exception:
+    pass
+
+
+# প্রতি দেড় ঘণ্টায় সিঙ্গেল মেনু পোস্ট পাঠানোর এবং ২০ সেকেন্ড পর ডিলিট করার লজিক
 async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
   global poster_index, last_sent_menu_ids
 
@@ -140,57 +138,53 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
         current_poster_id = menu_poster_ids[poster_index % len(menu_poster_ids)]
         poster_index = (poster_index + 1) % len(menu_poster_ids)
 
-      # স্ক্রিনশট অনুযায়ী স্ক্রিনের বাটন লেআউট (উপরে ও নিচে শেয়ার করুন, মাঝে ক্যাটাগরি বাটন)
+      # সিঙ্গেল ও পরিচ্ছন্ন বাটন লেআউট
       keyboard = [
           [
               InlineKeyboardButton(
-                  "🔴 শেয়ার করুন 🔴/3/",
+                  "🔴 শেয়ার করুন 🔴",
                   url="https://t.me/share/url?url=https://t.me/" + bot_username,
               )
           ],
           [
               InlineKeyboardButton(
-                  "🔴 ভাবি জ্বালা 🔴",
+                  "🔥 হট ভিডিও জোন",
                   url=f"https://t.me/{bot_username}?start=hot",
-              ),
-              InlineKeyboardButton(
-                  "🔵 পরীর মহল 🔵",
-                  url=f"https://t.me/{bot_username}?start=bangla_natok",
-              ),
+              )
           ],
           [
               InlineKeyboardButton(
-                  "🍒 PREMIUM HU...",
+                  "🎭 ব্যাচেলর পয়েন্ট নাটক",
                   url=f"https://t.me/{bot_username}?start=bachelor",
-              ),
+              )
+          ],
+          [
               InlineKeyboardButton(
-                  "🍀 রসের ভাবি 🍀",
+                  "📺 বাংলা নাটক",
+                  url=f"https://t.me/{bot_username}?start=bangla_natok",
+              )
+          ],
+          [
+              InlineKeyboardButton(
+                  "🎬 বাংলা সিনেমা ও নাটক",
                   url=f"https://t.me/{bot_username}?start=natok",
-              ),
+              )
           ],
           [
               InlineKeyboardButton(
-                  "🔴 হিজাব ভিডিও 🔴",
+                  "🇮🇳 হিন্দি ড্রামা ও মুভি",
                   url=f"https://t.me/{bot_username}?start=hindi",
-              ),
+              )
+          ],
+          [
               InlineKeyboardButton(
-                  "🔴 নতুন ভাইয়ের ভি...",
+                  "🕵️‍♂️ CID নাটকের সকল পর্ব",
                   url=f"https://t.me/{bot_username}?start=cid",
-              ),
+              )
           ],
           [
               InlineKeyboardButton(
-                  "🔞 রাতের আড্ডা 🔞",
-                  url=f"https://t.me/{bot_username}?start=hot",
-              ),
-              InlineKeyboardButton(
-                  "🔵 ভিডিও চ্যানেল ☪️", url="https://t.me/kawsaralom76410"
-              ),
-          ],
-          [
-              InlineKeyboardButton(
-                  "🔴 শেয়ার করুন 🔴/3/",
-                  url="https://t.me/share/url?url=https://t.me/" + bot_username,
+                  "🔵 মূল ভিডিও চ্যানেল", url="https://t.me/kawsaralom76410"
               )
           ],
       ]
@@ -204,6 +198,7 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
       )
 
       for chat_id in TARGET_CHATS:
+        # ডাবল মেসেজ এড়াতে আগের পাঠানো মেনু পোস্টটি তৎক্ষণাৎ ডিলিট করা
         if chat_id in last_sent_menu_ids:
           old_msg_id = last_sent_menu_ids[chat_id]
           try:
@@ -232,6 +227,12 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
             )
 
           last_sent_menu_ids[chat_id] = sent_msg.message_id
+
+          # মেনু পোস্ট পাঠানোর ২০ সেকেন্ড পর অটোমেটিক ডিলিট হবে
+          asyncio.create_task(
+              delete_message_after_delay(context, chat_id, sent_msg.message_id, 20)
+          )
+
           await asyncio.sleep(0.3)
         except Exception as e:
           print(f"Error sending menu to {chat_id}: {e}")
@@ -240,7 +241,7 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
       print(f"Loop error: {e}")
 
 
-# লিংক রিমুভ ও ৩ বার ওয়ার্নিং সিস্টেম
+# লিংক ফিল্টারিং এবং ওয়ার্নিং সিস্টেম
 async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
   if not update.message or update.message.chat_id not in TARGET_CHATS:
     return
@@ -296,7 +297,7 @@ async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Error muting user: {e}")
 
 
-# প্রাইভেট চ্যানেল থেকে ভিডিও এবং পোস্টার ছবি রিসিভ ও ফিল্টার করা
+# প্রাইভেট চ্যানেল থেকে ভিডিও রিসিভ করা
 async def receive_channel_video(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
@@ -337,9 +338,8 @@ async def receive_channel_video(
       videos["hot"].append(video_data)
 
 
-# প্রাইভেট চ্যানেলের পুরনো মেসেজগুলো স্ক্যান করা
 async def load_old_videos_from_channel(bot):
-  print("🔄 প্রাইভেট চ্যানেল স্ক্যানিং শুরু...")
+  print("🔄 চ্যানেল স্ক্যানিং শুরু...")
   try:
     for msg_id in range(1, 500):
       try:
@@ -384,12 +384,7 @@ async def load_old_videos_from_channel(bot):
               videos["hot"].append(v_data)
       except Exception:
         pass
-    print(
-        f"✅ স্ক্যান সম্পন্ন! মোট পোস্টার: {len(menu_poster_ids)}, হট ভিডিও:"
-        f" {len(videos['hot'])}, ব্যাচেলর: {len(videos['bachelor'])}, বাংলা নাটক:"
-        f" {len(videos['bangla_natok'])}, সিনেমা/নাটক: {len(videos['natok'])},"
-        f" হিন্দি: {len(videos['hindi'])}, CID: {len(videos['cid'])}"
-    )
+    print("✅ স্ক্যান সম্পন্ন!")
   except Exception as e:
     print(f"Error scanning: {e}")
 
@@ -417,15 +412,15 @@ async def deliver_videos_to_user(chat_id, cat_key, cat_title, context):
           message_id=item["message_id"],
           reply_markup=video_markup,
       )
+      # ইনবক্সে পাঠানো ভিডিওগুলো ২০ মিনিট (১২০০ সেকেন্ড) পর অটোমেটিক ডিলিট হবে
       asyncio.create_task(
-          delete_inbox_video_after_delay(context, chat_id, sent_msg.message_id)
+          delete_message_after_delay(context, chat_id, sent_msg.message_id, 1200)
       )
       await asyncio.sleep(0.5)
     except Exception as e:
       print(f"Error: {e}")
 
 
-# স্টার্ট কমান্ড ও ক্যাটাগরি হ্যান্ডলার
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
   user = update.message.from_user
   args = context.args
@@ -505,15 +500,6 @@ async def button_callback_handler(
       await query.answer("❌ সব চ্যানেলে জয়েন করুন!", show_alert=True)
 
 
-async def delete_inbox_video_after_delay(context, chat_id, message_id):
-  await asyncio.sleep(1200)
-  try:
-    await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
-  except Exception:
-    pass
-
-
-# স্ট্যাটাস চেক করার কমান্ড (/status)
 async def admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
   user = update.message.from_user
   if not user.username or user.username.lower() != ADMIN_USERNAME.lower():
@@ -548,7 +534,7 @@ def main():
   application.post_init = post_init
 
   job_queue = application.job_queue
-  # প্রতি দেড় ঘণ্টা (৫৪০০ সেকেন্ড) পর পর পুরনো মেসেজ ডিলিট হয়ে নতুন মেনু পোস্ট আসবে
+  # প্রতি দেড় ঘণ্টা (৫৪০০ সেকেন্ড) পর পর নতুন মেনু পোস্ট আসবে
   job_queue.run_repeating(send_auto_video_menu, interval=5400, first=5)
 
   application.add_handler(CommandHandler("start", start_handler))
@@ -570,8 +556,8 @@ def main():
   )
 
   print(
-      "Bot is running successfully with 1.5-hour interval menu rotation and"
-      " custom button layout!"
+      "Bot is running successfully with clean single buttons and auto-delete"
+      " features!"
   )
   application.run_polling()
 

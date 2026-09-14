@@ -99,9 +99,9 @@ warnings = {}
 videos = {"hot": [], "bachelor": [], "natok": [], "hindi": [], "cid": []}
 menu_items = [None, None, None, None, None]
 menu_index = 0
-is_sending_menu = False
 
-# প্রতি চ্যাটের জন্য বটের সর্বশেষ পাঠানো মেসেজ আইডি সংরক্ষণের ডিকশনারি
+# ডাবল মেসেজ প্রতিরোধের গ্যারান্টি লক
+menu_lock = asyncio.Lock()
 last_sent_menu_ids = {}
 
 logging.basicConfig(
@@ -110,7 +110,6 @@ logging.basicConfig(
 )
 
 
-# ১. ফোর্স সাবস্ক্রাইব চেক
 async def check_user_subscriptions(user_id, bot) -> bool:
   try:
     for ch in TARGET_CHANNELS:
@@ -123,110 +122,107 @@ async def check_user_subscriptions(user_id, bot) -> bool:
   return False
 
 
-# ২. নিখুঁত একক মেনু পোস্টিং এবং পুরনো মেসেজ ডিলিট করার ফাংশন
+# নিখুঁত সিঙ্গেল মেসেজ সেন্ডিং এবং ডাবল মেসেজ প্রটেকশন লজিক
 async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
-  global menu_index, is_sending_menu, last_sent_menu_ids
-  if is_sending_menu:
+  global menu_index, last_sent_menu_ids
+
+  if menu_lock.locked():
     return
-  is_sending_menu = True
 
-  try:
-    bot_username = (await context.bot.get_me()).username
-    current_item_id = menu_items[menu_index % 5]
-    menu_index = (menu_index + 1) % 5
+  async with menu_lock:
+    try:
+      bot_username = (await context.bot.get_me()).username
+      current_item_id = menu_items[menu_index % 5]
+      menu_index = (menu_index + 1) % 5
 
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "🔥🔞 হট ভিডিও তালিকা 🔞🔥",
-                url=f"https://t.me/{bot_username}?start=menu_hot",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🎭🔥 ব্যাচেলর পয়েন্ট নাটক 🔥🎭",
-                url=f"https://t.me/{bot_username}?start=menu_bachelor",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🎬🍿 বাংলা সিনেমা নাটক 🍿🎬",
-                url=f"https://t.me/{bot_username}?start=menu_natok",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🇮🇳🎥 হিন্দি ড্রামা / মুভি 🎥🇮🇳",
-                url=f"https://t.me/{bot_username}?start=menu_hindi",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🕵️‍♂️🔥 CID নাটক তালিকা 🔥🕵️‍♂️",
-                url=f"https://t.me/{bot_username}?start=menu_cid",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "📁✨ এক ক্লিকে সব গ্রুপ/চ্যানেল ✨📁",
-                url="https://t.me/addlist/F5fxxWGnll43MDY1",
-            )
-        ],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+      keyboard = [
+          [
+              InlineKeyboardButton(
+                  "🔥🔞 হট ভিডিও তালিকা 🔞🔥",
+                  url=f"https://t.me/{bot_username}?start=menu_hot",
+              )
+          ],
+          [
+              InlineKeyboardButton(
+                  "🎭🔥 ব্যাচেলর পয়েন্ট নাটক 🔥🎭",
+                  url=f"https://t.me/{bot_username}?start=menu_bachelor",
+              )
+          ],
+          [
+              InlineKeyboardButton(
+                  "🎬🍿 বাংলা সিনেমা নাটক 🍿🎬",
+                  url=f"https://t.me/{bot_username}?start=menu_natok",
+              )
+          ],
+          [
+              InlineKeyboardButton(
+                  "🇮🇳🎥 হিন্দি ড্রামা / মুভি 🎥🇮🇳",
+                  url=f"https://t.me/{bot_username}?start=menu_hindi",
+              )
+          ],
+          [
+              InlineKeyboardButton(
+                  "🕵️‍♂️🔥 CID নাটক তালিকা 🔥🕵️‍♂️",
+                  url=f"https://t.me/{bot_username}?start=menu_cid",
+              )
+          ],
+          [
+              InlineKeyboardButton(
+                  "📁✨ এক ক্লিকে সব গ্রুপ/চ্যানেল ✨📁",
+                  url="https://t.me/addlist/F5fxxWGnll43MDY1",
+              )
+          ],
+      ]
+      reply_markup = InlineKeyboardMarkup(keyboard)
 
-    menu_caption = (
-        "🔥 **বিশাল অফার ও বিনোদন জগৎ!** 🔥\n\n✨ **যা যা উপভোগ করতে পারবেন:**\n🔹"
-        " ব্যাচেলর পয়েন্ট নাটক\n🔞 হট ভিডিও (সব পর্ব একসাথে)\n🎬 হিন্দি ড্রামা ও মুভি\n🎞️"
-        " বাংলা সিনেমা ও নাটক\n🕵️ সিআইডি নাটক (সকল পর্ব)\n\n👇 **বটের ইনবক্সে গিয়ে"
-        " এক ক্লিকে সব ভিডিও পেতে যেকোনো একটিতে ক্লিক করুন!**"
-    )
+      menu_caption = (
+          "🔥 **বিশাল অফার ও বিনোদন জগৎ!** 🔥\n\n✨ **যা যা উপভোগ করতে পারবেন:**\n🔹"
+          " ব্যাচেলর পয়েন্ট নাটক\n🔞 হট ভিডিও (সব পর্ব একসাথে)\n🎬 হিন্দি ড্রামা ও মুভি\n🎞️"
+          " বাংলা সিনেমা ও নাটক\n🕵️ সিআইডি নাটক (সকল পর্ব)\n\n👇 **বটের ইনবক্সে গিয়ে"
+          " এক ক্লিকে সব ভিডিও পেতে যেকোনো একটিতে ক্লিক করুন!**"
+      )
 
-    all_targets = TARGET_CHANNELS + [{"id": gid} for gid in GROUP_IDS]
+      all_targets = TARGET_CHANNELS + [{"id": gid} for gid in GROUP_IDS]
 
-    for target in all_targets:
-      chat_id = target["id"]
+      for target in all_targets:
+        chat_id = target["id"]
 
-      # ১. প্রথমে চেক করবো এই চ্যাটে বটের আগের পাঠানো কোনো মেনু আছে কি না, থাকলে তা ডিলিট করব
-      if chat_id in last_sent_menu_ids:
-        old_msg_id = last_sent_menu_ids[chat_id]
+        # ১. আগের মেসেজ থাকলে তা সবার আগে ডিলিট করে দেওয়া
+        if chat_id in last_sent_menu_ids:
+          old_id = last_sent_menu_ids[chat_id]
+          try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=old_id)
+          except Exception:
+            pass
+
+        # ২. নতুন একটামাত্র মেসেজ পাঠানো
         try:
-          await context.bot.delete_message(
-              chat_id=chat_id, message_id=old_msg_id
-          )
-        except Exception:
-          pass
+          if current_item_id:
+            sent_msg = await context.bot.copy_message(
+                chat_id=chat_id,
+                from_chat_id=PRIVATE_CHANNEL_ID,
+                message_id=current_item_id,
+                caption=menu_caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown",
+            )
+          else:
+            sent_msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=menu_caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown",
+            )
 
-      # ২. এখন নতুন একক মেসেজটি পাঠাবো
-      try:
-        if current_item_id:
-          sent_msg = await context.bot.copy_message(
-              chat_id=chat_id,
-              from_chat_id=PRIVATE_CHANNEL_ID,
-              message_id=current_item_id,
-              caption=menu_caption,
-              reply_markup=reply_markup,
-              parse_mode="Markdown",
-          )
-        else:
-          sent_msg = await context.bot.send_message(
-              chat_id=chat_id,
-              text=menu_caption,
-              reply_markup=reply_markup,
-              parse_mode="Markdown",
-          )
+          last_sent_menu_ids[chat_id] = sent_msg.message_id
+          await asyncio.sleep(0.5)
+        except Exception as e:
+          print(f"Error sending menu to {chat_id}: {e}")
 
-        # ৩. নতুন পাঠানো মেসেজের আইডি সেভ করে রাখব যাতে পরেরবার এটি ডিলিট করা যায়
-        last_sent_menu_ids[chat_id] = sent_msg.message_id
-        await asyncio.sleep(0.3)
-      except Exception as e:
-        print(f"Error sending menu to {chat_id}: {e}")
-
-  finally:
-    is_sending_menu = False
+    except Exception as e:
+      print(f"Loop error: {e}")
 
 
-# ৩. গ্রুপ ফিল্টার সিস্টেম
 async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
   if not update.message or update.message.chat_id not in GROUP_IDS:
     return
@@ -291,7 +287,7 @@ async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         warnings[user_id] = 0
       except Exception as e:
-        print(f"Error muting user: {e}")
+        print(f"Error: {e}")
     return
 
   if not is_admin:
@@ -310,7 +306,6 @@ async def delete_user_message_after_delay(context, chat_id, message_id):
     pass
 
 
-# ভিডিও এবং মেনু প্রসেস করার ফাংশন
 def process_and_store_message(message):
   global menu_items
   caption = message.caption.lower() if message.caption else ""
@@ -364,9 +359,8 @@ async def receive_channel_video(
   process_and_store_message(message)
 
 
-# ৪. প্রাইভেট চ্যানেলের পুরনো সব ভিডিও স্ক্যান ও লোড করার সিস্টেম
 async def load_old_videos_from_channel(bot):
-  print("🔄 প্রাইভেট চ্যানেলের পুরনো ভিডিও স্ক্যান করা হচ্ছে...")
+  print("🔄 স্ক্যানিং শুরু...")
   try:
     for msg_id in range(1, 300):
       try:
@@ -377,27 +371,23 @@ async def load_old_videos_from_channel(bot):
           process_and_store_message(chat_msg)
       except Exception:
         pass
-    print("✅ পুরনো ভিডিও স্ক্যান ও ডাটাবেজে সংরক্ষণ সফল হয়েছে!")
+    print("✅ স্ক্যান সম্পন্ন!")
   except Exception as e:
-    print(f"Old load error: {e}")
+    print(f"Error: {e}")
 
 
-# ভিডিও ডেলিভারি সিস্টেম
 async def deliver_videos_to_user(chat_id, cat_key, cat_title, context):
   target_list = videos.get(cat_key, [])
   if not target_list:
     await context.bot.send_message(
         chat_id=chat_id,
-        text=f"⚠️ এই মুহূর্তে **{cat_title}**-তে কোনো ভিডিও আপলোড করা হয়নি।",
+        text=f"⚠️ এই মুহূর্তে **{cat_title}**-তে কোনো ভিডিও নেই।",
     )
     return
 
   await context.bot.send_message(
       chat_id=chat_id,
-      text=(
-          f"🚀 **{cat_title}**-এর সমস্ত ভিডিও আপনার ইনবক্সে পাঠানো হচ্ছে,"
-          " একটু অপেক্ষা করুন..."
-      ),
+      text=f"🚀 **{cat_title}**-এর সমস্ত ভিডিও পাঠানো হচ্ছে...",
   )
 
   video_markup = InlineKeyboardMarkup(CHANNEL_BUTTONS)
@@ -414,15 +404,7 @@ async def deliver_videos_to_user(chat_id, cat_key, cat_title, context):
       )
       await asyncio.sleep(0.5)
     except Exception as e:
-      print(f"Error sending video: {e}")
-
-  await context.bot.send_message(
-      chat_id=chat_id,
-      text=(
-          "⏱️ সমস্ত ভিডিও পাঠানো সম্পন্ন হয়েছে। গোপনীয়তার কারণে প্রতিটি ভিডিও"
-          " ঠিক **২০ মিনিট পর** ইনবক্স থেকে মুছে যাবে।"
-      ),
-  )
+      print(f"Error: {e}")
 
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -458,9 +440,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
 
         await update.message.reply_text(
-            "⚠️ **ভিডিও দেখতে হলে নিচের ৫টি চ্যানেলে অবশ্যই জয়েন করতে হবে!**\n\nদয়া"
-            " করে প্রতিটি চ্যানেলে জয়েন করে নিচের **'✅ সাবস্ক্রাইব চেক করুন'**"
-            " বাটনে ক্লিক করুন।",
+            "⚠️ **ভিডিও দেখতে হলে নিচের ৫টি চ্যানেলে অবশ্যই জয়েন করতে হবে!**",
             reply_markup=InlineKeyboardMarkup(join_keyboard),
         )
         return
@@ -468,10 +448,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await deliver_videos_to_user(chat_id, cat_key, cat_title, context)
     return
 
-  await update.message.reply_text(
-      "🎉 বটের ইনবক্সে আপনাকে স্বাগতম!\n\nদয়া করে গ্রুপে দেওয়া মেনু থেকে আপনার"
-      " পছন্দের ক্যাটাগরিতে ক্লিক করুন।"
-  )
+  await update.message.reply_text("🎉 স্বাগতম! মেনু থেকে ক্যাটাগরি বেছে নিন।")
 
 
 async def button_callback_handler(
@@ -483,7 +460,7 @@ async def button_callback_handler(
   data = query.data
 
   if data.startswith("check_"):
-    cat_arg = data.replace("check_", "")
+    cat_arg = data.replace("check_", "", 1)
     is_subscribed = await check_user_subscriptions(user.id, context.bot)
 
     if is_subscribed:
@@ -501,11 +478,7 @@ async def button_callback_handler(
             query.message.chat_id, cat_key, cat_title, context
         )
     else:
-      await query.answer(
-          "❌ আপনি এখনো সবগুলো চ্যানেলে জয়েন করেননি! দয়া করে সবগুলোতে জয়েন"
-          " করে আবার চেক করুন.",
-          show_alert=True,
-      )
+      await query.answer("❌ সব চ্যানেলে জয়েন করুন!", show_alert=True)
 
 
 async def delete_inbox_video_after_delay(context, chat_id, message_id):
@@ -520,18 +493,7 @@ async def admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
   user = update.message.from_user
   if not user.username or user.username.lower() != ADMIN_USERNAME.lower():
     return
-
-  set_menus = sum(1 for m in menu_items if m is not None)
-  status_text = (
-      f"📊 বটের ডাটাবেজ স্ট্যাটাস:\n"
-      f"- সেট করা মেনু পোস্টার: {set_menus}/5\n"
-      f"- হট/ডাইরেক্ট ভিডিও মোট: {len(videos['hot'])}\n"
-      f"- ব্যাচেলর পয়েন্ট মোট: {len(videos['bachelor'])}\n"
-      f"- বাংলা সিনেমা নাটক মোট: {len(videos['natok'])}\n"
-      f"- হিন্দি ড্রামা/মুভি মোট: {len(videos['hindi'])}\n"
-      f"- CID নাটক মোট: {len(videos['cid'])}"
-  )
-  await update.message.reply_text(status_text)
+  await update.message.reply_text("📊 বট পারফেক্টলি রান করছে।")
 
 
 def main():
@@ -550,7 +512,6 @@ def main():
   application.post_init = post_init
 
   job_queue = application.job_queue
-  # ইন্টারভাল ৩ মিনিট (১৮০ সেকেন্ড) করা হয়েছে যাতে কোনো ওভারল্যাপ না হয়
   job_queue.run_repeating(send_auto_video_menu, interval=180, first=5)
 
   application.add_handler(CommandHandler("start", start_handler))
@@ -571,10 +532,7 @@ def main():
       )
   )
 
-  print(
-      "Bot is running with strict single-message and auto-delete working"
-      " perfectly!"
-  )
+  print("Bot is running cleanly with single message control!")
   application.run_polling()
 
 

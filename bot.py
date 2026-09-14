@@ -57,25 +57,36 @@ TARGET_CHANNELS = [
     },
 ]
 
+# ভিডিওর নিচে আপনার দেওয়া ৫টি চ্যানেল ও গ্রুপের লিংকযুক্ত বাটনসমূহ
 CHANNEL_BUTTONS = [
     [
         InlineKeyboardButton(
-            "🔗 চ্যানেল/গ্রুপ লিংক ১", url="https://t.me/+YVDafDISqdMxNTVl"
+            "🎬 নিউ মুভি চ্যানেল", url="https://t.me/+YVDafDISqdMxNTVl"
         )
     ],
     [
         InlineKeyboardButton(
-            "🕵️‍♂️ CID Season S2", url="https://t.me/CID_Season_S2o"
+            "🕵️‍♂️ CID Bangla Season 2", url="https://t.me/CID_Season_S2o"
         )
     ],
     [
         InlineKeyboardButton(
-            "📢 মেইন চ্যানেল", url="https://t.me/kawsaralom76410"
+            "🔥 হট ভিডিও চ্যানেল", url="https://t.me/kawsaralom76410"
         )
     ],
     [
         InlineKeyboardButton(
-            "👤 অফিশিয়াল আইডি/চ্যানেল", url="https://t.me/kawsar7641"
+            "👤 তানিয়া আক্তার হট ভিডিও", url="https://t.me/CID_Season_S2o"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            "🎭 মুভি সিআইডি ব্যাচেলর নাটক", url="https://t.me/Demogroup764"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            "👥 মূল গ্রুপ", url="https://t.me/kawsaralom76410"
         )
     ],
 ]
@@ -113,7 +124,7 @@ async def check_user_subscriptions(user_id, bot) -> bool:
   return False
 
 
-# ১. ৬টি জায়গায় একসাথে ঠিক ১টি করে মেনু পোস্ট পাঠানোর ফাংশন (প্রতি ১ মিনিট পর পর)
+# ১. ৬টি জায়গায় একসাথে ঠিক ১টি করে মেনু পোস্ট পাঠানো এবং পুরনো পোস্ট ডিলিট করার ফাংশন (প্রতি ১ মিনিট পর পর)
 async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
   global poster_index, last_sent_menu_ids
 
@@ -130,7 +141,7 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
         current_poster_id = menu_poster_ids[poster_index % len(menu_poster_ids)]
         poster_index = (poster_index + 1) % len(menu_poster_ids)
 
-      # আপনার চাহিদা অনুযায়ী ঠিক ৬টি বাটন
+      # মেনু পোস্টের জন্য ৬টি ক্যাটাগরি বাটন
       keyboard = [
           [
               InlineKeyboardButton(
@@ -179,7 +190,7 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
       )
 
       for chat_id in TARGET_CHATS:
-        # আগের পাঠানো মেসেজ ডিলিট করে দেওয়া যাতে ডাবল মেসেজ না হয়
+        # আগের পাঠানো মেসেজটি ডিলিট করে দেওয়া যাতে নতুনটি আসার পর ডাবল বা অতিরিক্ত মেসেজ না থাকে
         if chat_id in last_sent_menu_ids:
           old_id = last_sent_menu_ids[chat_id]
           try:
@@ -298,7 +309,7 @@ async def receive_channel_video(
         "caption": message.caption or "নামবিহীন ভিডিও",
     }
 
-    # যদি ক্যাপশন বা কমান্ড থাকে, তবে সে অনুযায়ী ক্যাটাগরিতে যাবে
+    # ক্যাটাগরি অনুযায়ী ভিডিও ফিল্টার করা
     if "bachelor" in caption:
       videos["bachelor"].append(video_data)
     elif "bangla natok" in caption or "বাংলা নাটক" in caption:
@@ -310,7 +321,7 @@ async def receive_channel_video(
     elif "cid" in caption:
       videos["cid"].append(video_data)
     else:
-      # কোনো কমান্ড বা ক্যাপশন না থাকলে সেটি অটোমেটিক 'হট ভিডিও' হিসেবে রিসিভ হবে
+      # ক্যাপশন ছাড়া ভিডিওগুলো অটোমেটিক 'হট ভিডিও' হিসেবে জমা হবে
       videos["hot"].append(video_data)
 
 
@@ -525,7 +536,7 @@ def main():
   application.post_init = post_init
 
   job_queue = application.job_queue
-  # প্রতি ১ মিনিট পর পর সমস্ত ৬টি জায়গায় একসাথে ঠিক ১টি করে মেনু পোস্ট আপডেট ও রোটেট হবে
+  # প্রতি ১ মিনিট পর পর সমস্ত ৬টি জায়গায় একসাথে নতুন পোস্ট আসবে এবং পুরনো পোস্ট ডিলিট হবে
   job_queue.run_repeating(send_auto_video_menu, interval=60, first=5)
 
   application.add_handler(CommandHandler("start", start_handler))
@@ -547,8 +558,8 @@ def main():
   )
 
   print(
-      "Bot is running successfully across all 6 targets with 6 buttons and"
-      " poster rotation!"
+      "Bot is running successfully across all 6 targets with correct channel"
+      " buttons and auto-delete menu rotation!"
   )
   application.run_polling()
 

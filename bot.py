@@ -206,4 +206,274 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
         if chat_id in last_sent_menu_ids:
           old_msg_id = last_sent_menu_ids[chat_id]
           try:
-            await context.bot.delete_
+            await context.bot.delete_message(
+                chat_id=chat_id, message_id=old_msg_id
+            )
+          except Exception:
+            pass
+
+        try:
+          if current_poster_id:
+            sent_msg = await context.bot.copy_message(
+                chat_id=chat_id,
+                from_chat_id=PRIVATE_CHANNEL_ID,
+                message_id=current_poster_id,
+                caption=menu_caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown",
+            )
+          else:
+            sent_msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=menu_caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown",
+            )
+
+          last_sent_menu_ids[chat_id] = sent_msg.message_id
+
+          # মেনু পোস্ট পাঠানোর ২০ সেকেন্ড পর অটোমেটিক ডিলিট হবে
+          asyncio.create_task(
+              delete_message_after_delay(context, chat_id, sent_msg.message_id, 20)
+          )
+
+          await asyncio.sleep(0.3)
+        except Exception as e:
+          print(f"Error sending menu to {chat_id}: {e}")
+
+    except Exception as e:
+      print(f"Loop error: {e}")
+
+
+# লিংক ফিল্টারিং এবং ওয়ার্নিং সিস্টেম
+async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  if not update.message or update.message.chat_id not in TARGET_CHATS:
+    return
+
+  message = update.message
+  user = message.from_user
+  if not user:
+    return
+
+  if user.username and user.username.lower() == ADMIN_USERNAME.lower():
+    return
+
+  text = message.text or message.caption or ""
+  if "http://" in text or "https://" in text or "t.me/" in text:
+    try:
+      await message.delete()
+    except Exception:
+      pass
+
+    user_id = user.id
+    warnings[user_id] = warnings.get(user_id, 0) + 1
+    count = warnings[user_id]
+
+    if count < 3:
+      await context.bot.send_message(
+          chat_id=message.chat_id,
+          text=(
+              f"@{user.username or user.first_name}, গ্রুপ বা চ্যানেলে লিংক"
+              f" শেয়ার করা নিষিদ্ধ! আপনার ওয়ার্নিং: {count}/3"
+          ),
+      )
+    else:
+      try:
+        await context.bot.restrict_chat_member(
+            chat_id=message.chat_id,
+            user_id=user_id,
+            permissions={
+                "can_send_messages": False,
+                "can_send_media_messages": False,
+                "can_send_other_messages": False,
+            },
+            until_date=timedelta(hours=1),
+        )
+        await context.bot.send_message(
+            chat_id=message.chat_id,
+            text=(
+                f"@{user.username or user.first_name} ৩ বার লিংক শেয়ার করার"
+                " কারণে ১ ঘণ্টার জন্য মিউট করা হয়েছে।"
+            ),
+        )
+        warnings[user_id] = 0
+      except Exception as e:
+        print(f"Error muting user: {e}")
+
+
+# প্রাইভেট চ্যানেল থেকে ভিডিও রিসিভ করা
+async def receive_channel_video(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
+  message = update.channel_post or update.effective_message
+  if not message:
+    return
+
+  caption = message.caption.lower() if message.caption else ""
+
+  if message.photo:
+    if (
+        "poster" in caption
+        or "menu" in caption
+        or "pic" in caption
+        or not caption
+    ):
+      if message.message_id not in menu_poster_ids:
+        menu_poster_ids.append(message.message_id)
+      return
+
+  if message.video or message.document:
+    video_data = {
+        "message_id": message.message_id,
+        "caption": message.caption or "নামবিহীন ভিডিও",
+    }
+
+    if "bachelor" in caption:
+      videos["bachelor"].append(video_data)
+    elif "bangla natok" in caption or "বাংলা নাটক" in caption:
+      videos["bangla_natok"].append(video_data)
+    elif "natok" in caption or "বাংলা সিনেমা" in caption:
+      videos["natok"].append(video_data)
+    elif "hindi" in caption or "হিন্দি" in caption:
+      videos["hindi"].append(video_data)
+    elif "cid" in caption:
+      videos["cid"].append(video_data)
+    else:
+      videos["hot"].append(video_data)
+
+
+async def load_old_videos_from_channel(bot):
+  print("🔄 চ্যানেল স্ক্যানিং শুরু...")
+  try:
+    for msg_id in range(1, 500):
+      try:
+        chat_msg = await bot.get_message(
+            chat_id=PRIVATE_CHANNEL_ID, message_id=msg_id
+        )
+        if chat_msg:
+          caption = chat_msg.caption.lower() if chat_msg.caption else ""
+          if chat_msg.photo:
+            if (
+                "poster" in caption
+                or "menu" in caption
+                or "pic" in caption
+                or not caption
+            ):
+              if chat_msg.message_id not in menu_poster_ids:
+                menu_poster_ids.append(chat_msg.message_id)
+          elif chat_msg.video or chat_msg.document:
+            v_data = {
+                "message_id": chat_msg.message_id,
+                "caption": chat_msg.caption or "নামবিহীন ভিডিও",
+            }
+            if "bachelor" in caption and v_data not in videos["bachelor"]:
+              videos["bachelor"].append(v_data)
+            elif (
+                ("bangla natok" in caption or "বাংলা নাটক" in caption)
+                and v_data not in videos["bangla_natok"]
+            ):
+              videos["bangla_natok"].append(v_data)
+            elif (
+                ("natok" in caption or "বাংলা সিনেমা" in caption)
+                and v_data not in videos["natok"]
+            ):
+              videos["natok"].append(v_data)
+            elif ("hindi" in caption or "হিন্দি" in caption) and v_data not in [
+                v for v in videos["hindi"]
+            ]:
+              videos["hindi"].append(v_data)
+            elif "cid" in caption and v_data not in videos["cid"]:
+              videos["cid"].append(v_data)
+            elif not chat_msg.caption and v_data not in videos["hot"]:
+              videos["hot"].append(v_data)
+      except Exception:
+        pass
+    print("✅ স্ক্যান সম্পন্ন!")
+  except Exception as e:
+    print(f"Error scanning: {e}")
+
+
+async def deliver_videos_to_user(chat_id, cat_key, cat_title, context):
+  target_list = videos.get(cat_key, [])
+  if not target_list:
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"⚠️ এই মুহূর্তে **{cat_title}**-তে কোনো ভিডিও নেই।",
+    )
+    return
+
+  await context.bot.send_message(
+      chat_id=chat_id,
+      text=f"🚀 **{cat_title}**-এর সমস্ত ভিডিও পাঠানো হচ্ছে...",
+  )
+
+  video_markup = InlineKeyboardMarkup(CHANNEL_BUTTONS)
+  for item in target_list:
+    try:
+      sent_msg = await context.bot.copy_message(
+          chat_id=chat_id,
+          from_chat_id=PRIVATE_CHANNEL_ID,
+          message_id=item["message_id"],
+          reply_markup=video_markup,
+      )
+      # ইনবক্সে পাঠানো ভিডিওগুলো ২০ মিনিট (১২০০ সেকেন্ড) পর অটোমেটিক ডিলিট হবে
+      asyncio.create_task(
+          delete_message_after_delay(context, chat_id, sent_msg.message_id, 1200)
+      )
+      await asyncio.sleep(0.5)
+    except Exception as e:
+      print(f"Error: {e}")
+
+
+async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  user = update.message.from_user
+  args = context.args
+  chat_id = update.message.chat_id
+  is_admin = user.username and user.username.lower() == ADMIN_USERNAME.lower()
+
+  cat_display_names = {
+      "bachelor": ("bachelor", "🎭🔥 ব্যাচেলর পয়েন্ট নাটক"),
+      "hot": ("hot", "🔥🔞 হট ভিডিও"),
+      "natok": ("natok", "🎬🍿 বাংলা সিনেমা ও নাটক"),
+      "bangla_natok": ("bangla_natok", "📺🎭 বাংলা নাটক"),
+      "hindi": ("hindi", "🇮🇳🎥 হিন্দি ড্রামা ও মুভি"),
+      "cid": ("cid", "🕵️‍♂️🔥 CID নাটকের সকল পর্ব"),
+  }
+
+  if args and args[0] in cat_display_names:
+    cat_key, cat_title = cat_display_names[args[0]]
+
+    if not is_admin:
+      is_subscribed = await check_user_subscriptions(user.id, context.bot)
+      if not is_subscribed:
+        join_keyboard = []
+        for ch in TARGET_CHANNELS:
+          join_keyboard.append(
+              [InlineKeyboardButton(f"👉 {ch['name']} এ জয়েন করুন", url=ch["url"])]
+          )
+
+        join_keyboard.append([
+            InlineKeyboardButton(
+                "✅ সাবস্ক্রাইব চেক করুন", callback_data=f"check_{args[0]}"
+            )
+        ])
+
+        await update.message.reply_text(
+            "⚠️ **ভিডিও দেখতে হলে নিচের চ্যানেলগুলোতে অবশ্যই জয়েন করতে হবে!**",
+            reply_markup=InlineKeyboardMarkup(join_keyboard),
+        )
+        return
+
+    await deliver_videos_to_user(chat_id, cat_key, cat_title, context)
+    return
+
+  await update.message.reply_text(
+      "🎉 স্বাগতম! চ্যানেল বা গ্রুপে দেওয়া মেনু থেকে আপনার পছন্দের ক্যাটাগরি বেছে"
+      " নিন।"
+  )
+
+
+async def button_callback_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
+  query

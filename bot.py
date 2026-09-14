@@ -100,7 +100,7 @@ videos = {"hot": [], "bachelor": [], "natok": [], "hindi": [], "cid": []}
 menu_items = [None, None, None, None, None]
 menu_index = 0
 
-# ডাবল মেসেজ প্রতিরোধের গ্যারান্টি লক
+# ডাবল মেসেজ সম্পূর্ণরূপে বন্ধ করার লক
 menu_lock = asyncio.Lock()
 last_sent_menu_ids = {}
 
@@ -122,7 +122,7 @@ async def check_user_subscriptions(user_id, bot) -> bool:
   return False
 
 
-# নিখুঁত সিঙ্গেল মেসেজ সেন্ডিং এবং ডাবল মেসেজ প্রটেকশন লজিক
+# সুনির্দিষ্টভাবে শুধুমাত্র ১টি মেসেজ রাখার নিখুঁত ফাংশন
 async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
   global menu_index, last_sent_menu_ids
 
@@ -187,7 +187,7 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
       for target in all_targets:
         chat_id = target["id"]
 
-        # ১. আগের মেসেজ থাকলে তা সবার আগে ডিলিট করে দেওয়া
+        # ১. আগের পাঠানো মেসেজ থাকলে সবার আগে সেটি পার্মানেন্টলি ডিলিট করা হবে
         if chat_id in last_sent_menu_ids:
           old_id = last_sent_menu_ids[chat_id]
           try:
@@ -195,7 +195,7 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
           except Exception:
             pass
 
-        # ২. নতুন একটামাত্র মেসেজ পাঠানো
+        # ২. নতুন মাত্র ১টি মেসেজ পাঠানো হবে
         try:
           if current_item_id:
             sent_msg = await context.bot.copy_message(
@@ -214,8 +214,9 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="Markdown",
             )
 
+          # বর্তমান মেসেজ আইডি সেভ করে রাখা হলো যাতে পরের লুপে এটি ডিলিট করা যায়
           last_sent_menu_ids[chat_id] = sent_msg.message_id
-          await asyncio.sleep(0.5)
+          await asyncio.sleep(0.3)
         except Exception as e:
           print(f"Error sending menu to {chat_id}: {e}")
 
@@ -532,7 +533,9 @@ def main():
       )
   )
 
-  print("Bot is running cleanly with single message control!")
+  print(
+      "Bot is running cleanly with single message control and no duplicates!"
+  )
   application.run_polling()
 
 

@@ -101,7 +101,7 @@ menu_items = [None, None, None, None, None]
 menu_index = 0
 is_sending_menu = False
 
-# গ্রুপে আগের পাঠানো বটের মেনু মেসেজ আইডিগুলো মনে রাখার ডিকশনারি
+# প্রতি চ্যাটের জন্য বটের সর্বশেষ পাঠানো মেসেজ আইডি সংরক্ষণের ডিকশনারি
 last_sent_menu_ids = {}
 
 logging.basicConfig(
@@ -123,7 +123,7 @@ async def check_user_subscriptions(user_id, bot) -> bool:
   return False
 
 
-# ২. অটো মেনু পোস্টার পাঠানোর ফাংশন (আগের মেসেজ নিজে ডিলিট করে তারপর নতুন পাঠাবে)
+# ২. নিখুঁত একক মেনু পোস্টিং এবং পুরনো মেসেজ ডিলিট করার ফাংশন
 async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
   global menu_index, is_sending_menu, last_sent_menu_ids
   if is_sending_menu:
@@ -182,19 +182,23 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
         " এক ক্লিকে সব ভিডিও পেতে যেকোনো একটিতে ক্লিক করুন!**"
     )
 
-    # টার্গেট চ্যানেলগুলোতে পাঠানো
-    for ch in TARGET_CHANNELS:
-      try:
-        chat_id = ch["id"]
-        # চ্যানেলে আগের পাঠানো মেনু থাকলে তা ডিলিট করা
-        if chat_id in last_sent_menu_ids:
-          try:
-            await context.bot.delete_message(
-                chat_id=chat_id, message_id=last_sent_menu_ids[chat_id]
-            )
-          except Exception:
-            pass
+    all_targets = TARGET_CHANNELS + [{"id": gid} for gid in GROUP_IDS]
 
+    for target in all_targets:
+      chat_id = target["id"]
+
+      # ১. প্রথমে চেক করবো এই চ্যাটে বটের আগের পাঠানো কোনো মেনু আছে কি না, থাকলে তা ডিলিট করব
+      if chat_id in last_sent_menu_ids:
+        old_msg_id = last_sent_menu_ids[chat_id]
+        try:
+          await context.bot.delete_message(
+              chat_id=chat_id, message_id=old_msg_id
+          )
+        except Exception:
+          pass
+
+      # ২. এখন নতুন একক মেসেজটি পাঠাবো
+      try:
         if current_item_id:
           sent_msg = await context.bot.copy_message(
               chat_id=chat_id,
@@ -211,45 +215,13 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
               reply_markup=reply_markup,
               parse_mode="Markdown",
           )
+
+        # ৩. নতুন পাঠানো মেসেজের আইডি সেভ করে রাখব যাতে পরেরবার এটি ডিলিট করা যায়
         last_sent_menu_ids[chat_id] = sent_msg.message_id
         await asyncio.sleep(0.3)
       except Exception as e:
-        print(f"Error sending menu to channel: {e}")
+        print(f"Error sending menu to {chat_id}: {e}")
 
-    # গ্রুপগুলোতে পাঠানো (আগে নিজের পাঠানো মেসেজ ডিলিট করে তারপর নতুন পাঠাবে)
-    for group_id in GROUP_IDS:
-      try:
-        # গ্রুপে বটের আগের পাঠানো মেনু মেসেজ থাকলে তা তাৎক্ষণিক ডিলিট করা
-        if group_id in last_sent_menu_ids:
-          try:
-            await context.bot.delete_message(
-                chat_id=group_id, message_id=last_sent_menu_ids[group_id]
-            )
-          except Exception:
-            pass
-
-        if current_item_id:
-          sent_message = await context.bot.copy_message(
-              chat_id=group_id,
-              from_chat_id=PRIVATE_CHANNEL_ID,
-              message_id=current_item_id,
-              caption=menu_caption,
-              reply_markup=reply_markup,
-              parse_mode="Markdown",
-          )
-        else:
-          sent_message = await context.bot.send_message(
-              chat_id=group_id,
-              text=menu_caption,
-              reply_markup=reply_markup,
-              parse_mode="Markdown",
-          )
-
-        # নতুন পাঠানো মেসেজ আইডিও সেভ করে রাখা হলো
-        last_sent_menu_ids[group_id] = sent_message.message_id
-        await asyncio.sleep(0.3)
-      except Exception as e:
-        print(f"Error sending auto menu to group: {e}")
   finally:
     is_sending_menu = False
 
@@ -553,11 +525,11 @@ async def admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
   status_text = (
       f"📊 বটের ডাটাবেজ স্ট্যাটাস:\n"
       f"- সেট করা মেনু পোস্টার: {set_menus}/5\n"
-      f"- হট/ডাইরেক্ট ভিডিও মোট: len(videos['hot'])\n"
-      f"- ব্যাচেলর পয়েন্ট মোট: len(videos['bachelor'])\n"
-      f"- বাংলা সিনেমা নাটক মোট: len(videos['natok'])\n"
-      f"- হিন্দি ড্রামা/মুভি মোট: len(videos['hindi'])\n"
-      f"- CID নাটক মোট: len(videos['cid'])"
+      f"- হট/ডাইরেক্ট ভিডিও মোট: {len(videos['hot'])}\n"
+      f"- ব্যাচেলর পয়েন্ট মোট: {len(videos['bachelor'])}\n"
+      f"- বাংলা সিনেমা নাটক মোট: {len(videos['natok'])}\n"
+      f"- হিন্দি ড্রামা/মুভি মোট: {len(videos['hindi'])}\n"
+      f"- CID নাটক মোট: {len(videos['cid'])}"
   )
   await update.message.reply_text(status_text)
 
@@ -578,8 +550,8 @@ def main():
   application.post_init = post_init
 
   job_queue = application.job_queue
-  # ইন্টারভাল ২ মিনিট (১২০ সেকেন্ড) করা হয়েছে যাতে ডাবল পোস্ট না হয়
-  job_queue.run_repeating(send_auto_video_menu, interval=120, first=5)
+  # ইন্টারভাল ৩ মিনিট (১৮০ সেকেন্ড) করা হয়েছে যাতে কোনো ওভারল্যাপ না হয়
+  job_queue.run_repeating(send_auto_video_menu, interval=180, first=5)
 
   application.add_handler(CommandHandler("start", start_handler))
   application.add_handler(CommandHandler("status", admin_status))
@@ -599,7 +571,10 @@ def main():
       )
   )
 
-  print("Bot is running with auto-delete and single-post fixed!")
+  print(
+      "Bot is running with strict single-message and auto-delete working"
+      " perfectly!"
+  )
   application.run_polling()
 
 

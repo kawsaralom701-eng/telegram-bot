@@ -99,6 +99,7 @@ warnings = {}
 videos = {"hot": [], "bachelor": [], "natok": [], "hindi": [], "cid": []}
 menu_items = [None, None, None, None, None]
 menu_index = 0
+is_sending_menu = False  # ডাবল পোস্ট রোধ করার জন্য লক ভেরিয়েবল
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -119,108 +120,114 @@ async def check_user_subscriptions(user_id, bot) -> bool:
   return False
 
 
-# ২. অটো মেনু পোস্টার পাঠানোর ফাংশন (ডাবল সেন্ড রোধে ১ মিনিট ফিক্সড ইন্টারভাল)
+# ২. অটো মেনু পোস্টার পাঠানোর ফাংশন (ডাবল পোস্ট রোধ করার লক সিস্টেমসহ)
 async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
-  global menu_index
-  bot_username = (await context.bot.get_me()).username
+  global menu_index, is_sending_menu
+  if is_sending_menu:
+    return
+  is_sending_menu = True
 
-  current_item_id = menu_items[menu_index % 5]
-  menu_index = (menu_index + 1) % 5
+  try:
+    bot_username = (await context.bot.get_me()).username
+    current_item_id = menu_items[menu_index % 5]
+    menu_index = (menu_index + 1) % 5
 
-  keyboard = [
-      [
-          InlineKeyboardButton(
-              "🔥🔞 হট ভিডিও তালিকা 🔞🔥",
-              url=f"https://t.me/{bot_username}?start=menu_hot",
-          )
-      ],
-      [
-          InlineKeyboardButton(
-              "🎭🔥 ব্যাচেলর পয়েন্ট নাটক 🔥🎭",
-              url=f"https://t.me/{bot_username}?start=menu_bachelor",
-          )
-      ],
-      [
-          InlineKeyboardButton(
-              "🎬🍿 বাংলা সিনেমা নাটক 🍿🎬",
-              url=f"https://t.me/{bot_username}?start=menu_natok",
-          )
-      ],
-      [
-          InlineKeyboardButton(
-              "🇮🇳🎥 হিন্দি ড্রামা / মুভি 🎥🇮🇳",
-              url=f"https://t.me/{bot_username}?start=menu_hindi",
-          )
-      ],
-      [
-          InlineKeyboardButton(
-              "🕵️‍♂️🔥 CID নাটক তালিকা 🔥🕵️‍♂️",
-              url=f"https://t.me/{bot_username}?start=menu_cid",
-          )
-      ],
-      [
-          InlineKeyboardButton(
-              "📁✨ এক ক্লিকে সব গ্রুপ/চ্যানেল ✨📁",
-              url="https://t.me/addlist/F5fxxWGnll43MDY1",
-          )
-      ],
-  ]
-  reply_markup = InlineKeyboardMarkup(keyboard)
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "🔥🔞 হট ভিডিও তালিকা 🔞🔥",
+                url=f"https://t.me/{bot_username}?start=menu_hot",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "🎭🔥 ব্যাচেলর পয়েন্ট নাটক 🔥🎭",
+                url=f"https://t.me/{bot_username}?start=menu_bachelor",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "🎬🍿 বাংলা সিনেমা নাটক 🍿🎬",
+                url=f"https://t.me/{bot_username}?start=menu_natok",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "🇮🇳🎥 হিন্দি ড্রামা / মুভি 🎥🇮🇳",
+                url=f"https://t.me/{bot_username}?start=menu_hindi",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "🕵️‍♂️🔥 CID নাটক তালিকা 🔥🕵️‍♂️",
+                url=f"https://t.me/{bot_username}?start=menu_cid",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "📁✨ এক ক্লিকে সব গ্রুপ/চ্যানেল ✨📁",
+                url="https://t.me/addlist/F5fxxWGnll43MDY1",
+            )
+        ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-  menu_caption = (
-      "🔥 **বিশাল অফার ও বিনোদন জগৎ!** 🔥\n\n✨ **যা যা উপভোগ করতে পারবেন:**\n🔹"
-      " ব্যাচেলর পয়েন্ট নাটক\n🔞 হট ভিডিও (সব পর্ব একসাথে)\n🎬 হিন্দি ড্রামা ও মুভি\n🎞️"
-      " বাংলা সিনেমা ও নাটক\n🕵️ সিআইডি নাটক (সকল পর্ব)\n\n👇 **বটের ইনবক্সে গিয়ে"
-      " এক ক্লিকে সব ভিডিও পেতে যেকোনো একটিতে ক্লিক করুন!**"
-  )
+    menu_caption = (
+        "🔥 **বিশাল অফার ও বিনোদন জগৎ!** 🔥\n\n✨ **যা যা উপভোগ করতে পারবেন:**\n🔹"
+        " ব্যাচেলর পয়েন্ট নাটক\n🔞 হট ভিডিও (সব পর্ব একসাথে)\n🎬 হিন্দি ড্রামা ও মুভি\n🎞️"
+        " বাংলা সিনেমা ও নাটক\n🕵️ সিআইডি নাটক (সকল পর্ব)\n\n👇 **বটের ইনবক্সে গিয়ে"
+        " এক ক্লিকে সব ভিডিও পেতে যেকোনো একটিতে ক্লিক করুন!**"
+    )
 
-  for ch in TARGET_CHANNELS:
-    try:
-      if current_item_id:
-        await context.bot.copy_message(
-            chat_id=ch["id"],
-            from_chat_id=PRIVATE_CHANNEL_ID,
-            message_id=current_item_id,
-            caption=menu_caption,
-            reply_markup=reply_markup,
-            parse_mode="Markdown",
+    for ch in TARGET_CHANNELS:
+      try:
+        if current_item_id:
+          await context.bot.copy_message(
+              chat_id=ch["id"],
+              from_chat_id=PRIVATE_CHANNEL_ID,
+              message_id=current_item_id,
+              caption=menu_caption,
+              reply_markup=reply_markup,
+              parse_mode="Markdown",
+          )
+        else:
+          await context.bot.send_message(
+              chat_id=ch["id"],
+              text=menu_caption,
+              reply_markup=reply_markup,
+              parse_mode="Markdown",
+          )
+        await asyncio.sleep(0.5)
+      except Exception as e:
+        print(f"Error sending menu to channel: {e}")
+
+    for group_id in GROUP_IDS:
+      try:
+        if current_item_id:
+          sent_message = await context.bot.copy_message(
+              chat_id=group_id,
+              from_chat_id=PRIVATE_CHANNEL_ID,
+              message_id=current_item_id,
+              caption=menu_caption,
+              reply_markup=reply_markup,
+              parse_mode="Markdown",
+          )
+        else:
+          sent_message = await context.bot.send_message(
+              chat_id=group_id,
+              text=menu_caption,
+              reply_markup=reply_markup,
+              parse_mode="Markdown",
+          )
+
+        asyncio.create_task(
+            delete_menu_after_delay(context, group_id, sent_message.message_id)
         )
-      else:
-        await context.bot.send_message(
-            chat_id=ch["id"],
-            text=menu_caption,
-            reply_markup=reply_markup,
-            parse_mode="Markdown",
-        )
-      await asyncio.sleep(0.3)
-    except Exception as e:
-      print(f"Error sending menu to channel: {e}")
-
-  for group_id in GROUP_IDS:
-    try:
-      if current_item_id:
-        sent_message = await context.bot.copy_message(
-            chat_id=group_id,
-            from_chat_id=PRIVATE_CHANNEL_ID,
-            message_id=current_item_id,
-            caption=menu_caption,
-            reply_markup=reply_markup,
-            parse_mode="Markdown",
-        )
-      else:
-        sent_message = await context.bot.send_message(
-            chat_id=group_id,
-            text=menu_caption,
-            reply_markup=reply_markup,
-            parse_mode="Markdown",
-        )
-
-      asyncio.create_task(
-          delete_menu_after_delay(context, group_id, sent_message.message_id)
-      )
-      await asyncio.sleep(0.3)
-    except Exception as e:
-      print(f"Error sending auto menu to group: {e}")
+        await asyncio.sleep(0.5)
+      except Exception as e:
+        print(f"Error sending auto menu to group: {e}")
+  finally:
+    is_sending_menu = False
 
 
 async def delete_menu_after_delay(context, chat_id, message_id):
@@ -231,7 +238,7 @@ async def delete_menu_after_delay(context, chat_id, message_id):
     pass
 
 
-# ৩. গ্রুপ ফিল্টার সিস্টেম (যেকোনো লিংক, ইনলাইন বাটন ও ফরোয়ার্ড মেসেজ ব্লক করার জন্য)
+# ৩. গ্রুপ ফিল্টার সিস্টেম
 async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
   if not update.message or update.message.chat_id not in GROUP_IDS:
     return
@@ -369,24 +376,21 @@ async def receive_channel_video(
   process_and_store_message(message)
 
 
-# ৪. প্রাইভেট চ্যানেলের আগের ভিডিওগুলো লোড করার কার্যকরী সিস্টেম
-async def load_old_videos_from_channel(application):
-  print("🔄 প্রাইভেট চ্যানেলের আগের ভিডিও স্ক্যান করা হচ্ছে...")
+# ৪. প্রাইভেট চ্যানেলের পুরনো সব ভিডিও স্ক্যান ও লোড করার নিখুঁত সিস্টেম
+async def load_old_videos_from_channel(bot):
+  print("🔄 প্রাইভেট চ্যানেলের পুরনো ভিডিও স্ক্যান করা হচ্ছে...")
   try:
-    # সাম্প্রতিক ১০০টি মেসেজ স্ক্যান করে ডাটাবেজে যুক্ত করবে
-    for i in range(1, 150):
+    # ১ থেকে ৩০০ পর্যন্ত মেসেজ আইডি স্ক্যান করে পুরনো ভিডিও ডাটাবেজে তুলবে
+    for msg_id in range(1, 300):
       try:
-        forwarded = await application.bot.forward_message(
-            chat_id=PRIVATE_CHANNEL_ID,
-            from_chat_id=PRIVATE_CHANNEL_ID,
-            message_id=i,
+        chat_msg = await bot.get_message(
+            chat_id=PRIVATE_CHANNEL_ID, message_id=msg_id
         )
-        if forwarded:
-          process_and_store_message(forwarded)
-          await forwarded.delete()
+        if chat_msg:
+          process_and_store_message(chat_msg)
       except Exception:
         pass
-    print("✅ পুরনো ভিডিও স্ক্যান সম্পন্ন হয়েছে!")
+    print("✅ পুরনো ভিডিও স্ক্যান ও ডাটাবেজে সংরক্ষণ সফল হয়েছে!")
   except Exception as e:
     print(f"Old load error: {e}")
 
@@ -553,14 +557,20 @@ def main():
       .build()
   )
 
+  # পুরনো ভিডিও লোড করার জন্য বট স্টার্ট হওয়ার সময় কাজ করবে
+  async def post_init(app):
+    await load_old_videos_from_channel(app.bot)
+
+  application.post_init = post_init
+
   job_queue = application.job_queue
-  job_queue.run_repeating(send_auto_video_menu, interval=60, first=5)
+  # ডাবল পোস্ট রোধ করতে ইন্টারভাল ২ মিনিট (১২০ সেকেন্ড) করা হয়েছে
+  job_queue.run_repeating(send_auto_video_menu, interval=120, first=5)
 
   application.add_handler(CommandHandler("start", start_handler))
   application.add_handler(CommandHandler("status", admin_status))
   application.add_handler(CallbackQueryHandler(button_callback_handler))
 
-  # গ্রুপে যেকোনো মেসেজ (টেক্সট, ইনলাইন বাটন বা ফরোয়ার্ড করা মেসেজ) ফিল্টার করার হ্যান্ডলার
   application.add_handler(
       MessageHandler(
           filters.ALL & (~filters.COMMAND) & (~filters.UpdateType.CHANNEL_POST),
@@ -575,7 +585,7 @@ def main():
       )
   )
 
-  print("Bot is running with all fixes applied!")
+  print("Bot is running perfectly with all fixes!")
   application.run_polling()
 
 

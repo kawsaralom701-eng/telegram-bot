@@ -52,20 +52,15 @@ TARGET_CHANNELS = [
     {
         "id": -1003067466801,
         "name": "নিউ মুভি",
-        "url": "https://t.me/+YVDafDISqdMxNTVl",
+        "url": "https://t.me/+3_mK5H2KK-k0M2E1",  # এখানে আপনার নতুন লিংক বসানো হয়েছে
     },
 ]
 
-# ভিডিওর নিচের বাটনসমূহ (আপনার দেওয়া নতুন লিঙ্ক সহ)
+# ভিডিওর নিচের সিঙ্গেল এবং গোছানো বাটন লেআউট
 CHANNEL_BUTTONS = [
     [
         InlineKeyboardButton(
-            "📢 আমাদের চ্যানেলে জয়েন করুন", url="https://t.me/+3_mK5H2KK-k0M2E1"
-        )
-    ],
-    [
-        InlineKeyboardButton(
-            "🎬 নিউ মুভি চ্যানেল", url="https://t.me/+YVDafDISqdMxNTVl"
+            "🎬 নিউ মুভি চ্যানেল", url="https://t.me/+3_mK5H2KK-k0M2E1"
         )
     ],
     [
@@ -127,7 +122,7 @@ async def delete_message_after_delay(context, chat_id, message_id, delay_seconds
     pass
 
 
-# প্রতি ২ মিনিট (১২০ সেকেন্ড) পর পর মেনু পোস্ট পাঠানোর এবং ২০ সেকেন্ড পর ডিলিট করার লজিক
+# প্রতি ১ মিনিট (৬০ সেকেন্ড) পর পর মেনু পোস্ট পাঠানোর এবং ২০ সেকেন্ড পর ডিলিট করার লজিক
 async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
   global poster_index, last_sent_menu_ids
 
@@ -143,12 +138,12 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
         current_poster_id = menu_poster_ids[poster_index % len(menu_poster_ids)]
         poster_index = (poster_index + 1) % len(menu_poster_ids)
 
-      # সিঙ্গেল ও পরিচ্ছন্ন বাটন লেআউট (নতুন চ্যানেল লিঙ্ক সহ)
+      # সিঙ্গেল ও পরিচ্ছন্ন বাটন লেআউট
       keyboard = [
           [
               InlineKeyboardButton(
-                  "📢 আমাদের চ্যানেলে জয়েন করুন",
-                  url="https://t.me/+3_mK5H2KK-k0M2E1",
+                  "🔴 শেয়ার করুন 🔴",
+                  url="https://t.me/share/url?url=https://t.me/" + bot_username,
               )
           ],
           [
@@ -203,6 +198,7 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
       )
 
       for chat_id in TARGET_CHATS:
+        # ডাবল মেসেজ এড়াতে আগের পাঠানো মেনু পোস্টটি তৎক্ষণাৎ ডিলিট করা
         if chat_id in last_sent_menu_ids:
           old_msg_id = last_sent_menu_ids[chat_id]
           try:
@@ -476,4 +472,92 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button_callback_handler(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
-  query
+  query = update.callback_query
+  await query.answer()
+  user = query.from_user
+  data = query.data
+
+  if data.startswith("check_"):
+    cat_arg = data.replace("check_", "", 1)
+    is_subscribed = await check_user_subscriptions(user.id, context.bot)
+
+    if is_subscribed:
+      await query.message.delete()
+      cat_mapping = {
+          "bachelor": ("bachelor", "🎭🔥 ব্যাচেলর পয়েন্ট নাটক"),
+          "hot": ("hot", "🔥🔞 হট ভিডিও"),
+          "natok": ("natok", "🎬🍿 বাংলা সিনেমা ও নাটক"),
+          "bangla_natok": ("bangla_natok", "📺🎭 বাংলা নাটক"),
+          "hindi": ("hindi", "🇮🇳🎥 হিন্দি ড্রামা ও মুভি"),
+          "cid": ("cid", "🕵️‍♂️🔥 CID নাটকের সকল পর্ব"),
+      }
+      if cat_arg in cat_mapping:
+        cat_key, cat_title = cat_mapping[cat_arg]
+        await deliver_videos_to_user(
+            query.message.chat_id, cat_key, cat_title, context
+        )
+    else:
+      await query.answer("❌ সব চ্যানেলে জয়েন করুন!", show_alert=True)
+
+
+async def admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  user = update.message.from_user
+  if not user.username or user.username.lower() != ADMIN_USERNAME.lower():
+    return
+
+  status_text = (
+      f"📊 বটের ডাটাবেজ স্ট্যাটাস:\n"
+      f"- সংরক্ষিত পোস্টার ছবি: {len(menu_poster_ids)}\n"
+      f"- হট ভিডিও: {len(videos['hot'])}\n"
+      f"- ব্যাচেলর পয়েন্ট: {len(videos['bachelor'])}\n"
+      f"- বাংলা নাটক: {len(videos['bangla_natok'])}\n"
+      f"- বাংলা সিনেমা ও নাটক: {len(videos['natok'])}\n"
+      f"- হিন্দি ড্রামা/মুভি: {len(videos['hindi'])}\n"
+      f"- CID নাটক: {len(videos['cid'])}"
+  )
+  await update.message.reply_text(status_text)
+
+
+def main():
+  application = (
+      ApplicationBuilder()
+      .token(TOKEN)
+      .read_timeout(30)
+      .write_timeout(30)
+      .connect_timeout(30)
+      .build()
+  )
+
+  async def post_init(app):
+    await load_old_videos_from_channel(app.bot)
+
+  application.post_init = post_init
+
+  job_queue = application.job_queue
+  # প্রতি ১ মিনিট (৬০ সেকেন্ড) পর পর নতুন মেনু পোস্ট আসবে
+  job_queue.run_repeating(send_auto_video_menu, interval=60, first=5)
+
+  application.add_handler(CommandHandler("start", start_handler))
+  application.add_handler(CommandHandler("status", admin_status))
+  application.add_handler(CallbackQueryHandler(button_callback_handler))
+
+  application.add_handler(
+      MessageHandler(
+          filters.ALL & (~filters.COMMAND) & (~filters.UpdateType.CHANNEL_POST),
+          check_links,
+      )
+  )
+
+  application.add_handler(
+      MessageHandler(
+          filters.VIDEO | filters.Document.ALL | filters.PHOTO,
+          receive_channel_video,
+      )
+  )
+
+  print("Bot is running successfully with the updated channel link!")
+  application.run_polling()
+
+
+if __name__ == "__main__":
+  main()

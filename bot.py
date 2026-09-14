@@ -124,7 +124,7 @@ async def check_user_subscriptions(user_id, bot) -> bool:
   return False
 
 
-# ১. ৬টি জায়গায় একসাথে ঠিক ১টি করে মেনু পোস্ট পাঠানো এবং পুরনো পোস্ট ডিলিট করার ফাংশন (প্রতি ১ মিনিট পর পর)
+# ১. প্রতি ১ মিনিট পর পর পুরনো মেসেজ ডিলিট করে নতুন ১টি করে মেনু পোস্ট পাঠানোর ফাংশন
 async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
   global poster_index, last_sent_menu_ids
 
@@ -190,11 +190,13 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
       )
 
       for chat_id in TARGET_CHATS:
-        # আগের পাঠানো মেসেজটি ডিলিট করে দেওয়া যাতে নতুনটি আসার পর ডাবল বা অতিরিক্ত মেসেজ না থাকে
+        # প্রতিটি চ্যাট বা গ্রুপ থেকে আগের পাঠানো মেনু মেসেজটি আগে স্থায়ীভাবে ডিলিট করা হবে
         if chat_id in last_sent_menu_ids:
-          old_id = last_sent_menu_ids[chat_id]
+          old_msg_id = last_sent_menu_ids[chat_id]
           try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=old_id)
+            await context.bot.delete_message(
+                chat_id=chat_id, message_id=old_msg_id
+            )
           except Exception:
             pass
 
@@ -216,6 +218,7 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="Markdown",
             )
 
+          # নতুন মেসেজ আইডি সেভ করে রাখা হলো যাতে পরেরবার এটি ডিলিট করা যায়
           last_sent_menu_ids[chat_id] = sent_msg.message_id
           await asyncio.sleep(0.3)
         except Exception as e:
@@ -536,7 +539,7 @@ def main():
   application.post_init = post_init
 
   job_queue = application.job_queue
-  # প্রতি ১ মিনিট পর পর সমস্ত ৬টি জায়গায় একসাথে নতুন পোস্ট আসবে এবং পুরনো পোস্ট ডিলিট হবে
+  # প্রতি ১ মিনিট পর পর পুরনো মেসেজ ডিলিট হয়ে নতুন ১টি করে মেনু পোস্ট আসবে
   job_queue.run_repeating(send_auto_video_menu, interval=60, first=5)
 
   application.add_handler(CommandHandler("start", start_handler))
@@ -558,8 +561,8 @@ def main():
   )
 
   print(
-      "Bot is running successfully across all 6 targets with correct channel"
-      " buttons and auto-delete menu rotation!"
+      "Bot is running successfully! Old menu messages will be deleted before"
+      " sending new ones."
   )
   application.run_polling()
 

@@ -52,7 +52,7 @@ TARGET_CHANNELS = [
     {
         "id": -1003067466801,
         "name": "নিউ মুভি",
-        "url": "https://t.me/+3_mK5H2KK-k0M2E1",  # এখানে আপনার নতুন লিংক বসানো হয়েছে
+        "url": "https://t.me/+3_mK5H2KK-k0M2E1",
     },
 ]
 
@@ -138,53 +138,56 @@ async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
         current_poster_id = menu_poster_ids[poster_index % len(menu_poster_ids)]
         poster_index = (poster_index + 1) % len(menu_poster_ids)
 
-      # সিঙ্গেল ও পরিচ্ছন্ন বাটন লেআউট
+      # একদম শেষের দুটি বাটন আপনার চাহিদা অনুযায়ী আপডেট করা হলো
       keyboard = [
           [
               InlineKeyboardButton(
-                  "🔴 শেয়ার করুন 🔴",
-                  url="https://t.me/share/url?url=https://t.me/" + bot_username,
+                  "🟢 🎬 নিউ মুভি চ্যানেল 🎬 🟢",
+                  url="https://t.me/+3_mK5H2KK-k0M2E1",
               )
           ],
           [
               InlineKeyboardButton(
-                  "🔥 হট ভিডিও জোন",
+                  "🔴 হট ভিডিও জোন 🔴",
                   url=f"https://t.me/{bot_username}?start=hot",
-              )
-          ],
-          [
+              ),
               InlineKeyboardButton(
-                  "🎭 ব্যাচেলর পয়েন্ট নাটক",
+                  "🔵 ব্যাচেলর পয়েন্ট নাটক 🔵",
                   url=f"https://t.me/{bot_username}?start=bachelor",
-              )
+              ),
           ],
           [
               InlineKeyboardButton(
-                  "📺 বাংলা নাটক",
+                  "🟢 বাংলা নাটক 🟢",
                   url=f"https://t.me/{bot_username}?start=bangla_natok",
               )
           ],
           [
               InlineKeyboardButton(
-                  "🎬 বাংলা সিনেমা ও নাটক",
+                  "🔴 বাংলা সিনেমা ও নাটক 🔴",
                   url=f"https://t.me/{bot_username}?start=natok",
-              )
-          ],
-          [
+              ),
               InlineKeyboardButton(
-                  "🇮🇳 হিন্দি ড্রামা ও মুভি",
+                  "🔵 হিন্দি ড্রামা ও মুভি 🔵",
                   url=f"https://t.me/{bot_username}?start=hindi",
-              )
+              ),
           ],
           [
               InlineKeyboardButton(
-                  "🕵️‍♂️ CID নাটকের সকল পর্ব",
+                  "🟢 CID নাটকের সকল পর্ব 🟢",
                   url=f"https://t.me/{bot_username}?start=cid",
               )
           ],
           [
               InlineKeyboardButton(
-                  "🔵 মূল ভিডিও চ্যানেল", url="https://t.me/kawsaralom76410"
+                  "🔴🔵 মূল ভিডিও চ্যানেল 🔵🔴",
+                  url="https://t.me/CID_Season_S2o",
+              )
+          ],
+          [
+              InlineKeyboardButton(
+                  "🟢 🎭 ব্যাচেলর পয়েন্ট নাটক 🎭 🟢",
+                  url="https://t.me/+wkl-d8aJChtjMGU1",
               )
           ],
       ]
@@ -555,7 +558,7 @@ def main():
       )
   )
 
-  print("Bot is running successfully with the updated channel link!")
+  print("Bot is running successfully with the requested channel links!")
   application.run_polling()
 
 

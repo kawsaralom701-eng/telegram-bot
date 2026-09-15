@@ -48,7 +48,7 @@ async def delete_message_after_delay(context, chat_id, message_id, delay_seconds
     pass
 
 
-# ১. গ্রুপে অটো বাটন পাঠানোর ফাংশন (প্রতি ২ মিনিট বা ১২০ সেকেন্ড পর পর, ৩০ সেকেন্ড পর অটো ডিলিট)
+# ১. গ্রুপে অটো বাটন পাঠানোর ফাংশন (প্রতি ২ মিনিট পর পর, ৩০ সেকেন্ড পর অটো ডিলিট)
 async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
   global last_sent_menu_id
   bot_username = (await context.bot.get_me()).username
@@ -179,7 +179,7 @@ async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Error muting user: {e}")
 
 
-# ভিডিও প্রসেস করে ডিকশনারিতে সেভ করার ফাংশন
+# ভিডিও প্রসেস করে ডিকশনারিতে স্থায়ীভাবে সেভ করার ফাংশন
 def process_and_store_message(message):
   if message.video or message.document:
     caption = message.caption.lower() if message.caption else ""
@@ -211,7 +211,7 @@ async def receive_channel_video(
   process_and_store_message(message)
 
 
-# ৩-৪ মাসের বা আগের পুরনো ভিডিওগুলো স্ক্যান করে ডাটাবেজে স্থায়ীভাবে লোড করার ফাংশন
+# পুরনো ভিডিওগুলো স্ক্যান করে ডাটাবেজে স্থায়ীভাবে লোড করার ফাংশন (৩-৪ মাসের পুরনো ভিডিও)
 async def load_old_videos_from_channel(bot):
   print("🔄 প্রাইভেট চ্যানেলের পুরনো ভিডিও স্ক্যান ও ডাটাবেজে সংরক্ষণ শুরু...")
   try:
@@ -330,7 +330,7 @@ def main():
       )
   )
 
-  print("Bot is running successfully with 2-minute interval and auto-delete!")
+  print("Bot is running successfully with all requested features!")
   application.run_polling()
 
 

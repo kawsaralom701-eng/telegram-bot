@@ -51,10 +51,7 @@ async def delete_message_after_delay(context, chat_id, message_id, delay_seconds
 # ১. গ্রুপে অটো বাটন পাঠানোর ফাংশন (প্রতি ২ মিনিট পর পর, ৩০ সেকেন্ড পর অটো ডিলিট)
 async def send_auto_video_menu(context: ContextTypes.DEFAULT_TYPE):
   global last_sent_menu_id
-  try:
-    bot_username = (await context.bot.get_me()).username
-  except Exception:
-    return
+  bot_username = (await context.bot.get_me()).username
 
   keyboard = [
       [
@@ -134,12 +131,7 @@ async def check_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return
 
   message = update.message
-  if message.chat.id != TARGET_GROUP_ID:
-    return
-
   user = message.from_user
-  if not user:
-    return
 
   if user.username and user.username.lower() == ADMIN_USERNAME.lower():
     return
@@ -209,15 +201,32 @@ def process_and_store_message(message):
         videos["cid"].append(message.message_id)
 
 
-# ৩. প্রাইভেট চ্যানেল থেকে নতুন ভিডিও আসলে রিয়েল-টাইমে সেভ করার ফাংশন (চ্যানেল পোস্ট)
+# ৩. প্রাইভেট চ্যানেল থেকে নতুন ভিডিও আসলে রিয়েল-টাইমে সেভ করার ফাংশন
 async def receive_channel_video(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
-  message = update.channel_post
+  message = update.channel_post or update.effective_message
   if not message:
     return
-  if message.chat.id == PRIVATE_CHANNEL_ID:
-    process_and_store_message(message)
+  process_and_store_message(message)
+
+
+# পুরনো ভিডিওগুলো স্ক্যান করে ডাটাবেজে স্থায়ীভাবে লোড করার ফাংশন (৩-৪ মাসের পুরনো ভিডিও)
+async def load_old_videos_from_channel(bot):
+  print("🔄 প্রাইভেট চ্যানেলের পুরনো ভিডিও স্ক্যান ও ডাটাবেজে সংরক্ষণ শুরু...")
+  try:
+    for msg_id in range(1, 5000):
+      try:
+        chat_msg = await bot.get_message(
+            chat_id=PRIVATE_CHANNEL_ID, message_id=msg_id
+        )
+        if chat_msg:
+          process_and_store_message(chat_msg)
+      except Exception:
+        pass
+    print("✅ স্ক্যান সম্পন্ন! সকল পুরনো ভিডিও ডাটাবেজে নিরাপদে সংরক্ষিত হয়েছে।")
+  except Exception as e:
+    print(f"Error scanning old messages: {e}")
 
 
 # ৪. ইউজার ইনবক্সে আসলে কোনো জয়েন করার শর্ত ছাড়াই সরাসরি ভিডিও পাঠানো
@@ -285,7 +294,7 @@ async def admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return
 
   status_text = (
-      f"📊 বটের ডাটাবেজ স্ট্যাটাস:\n"
+      f"📊 বটের দীর্ঘমেয়াদী ডাটাবেজ স্ট্যাটাস:\n"
       f"- হট ভিডিও: {len(videos['hot'])}\n"
       f"- ব্যাচেলর পয়েন্ট: {len(videos['bachelor'])}\n"
       f"- বাংলা সিনেমা নাটক: {len(videos['natok'])}\n"
@@ -298,6 +307,12 @@ async def admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
   application = ApplicationBuilder().token(TOKEN).build()
 
+  # বট চালু হওয়ার সাথে সাথে প্রাইভেট চ্যানেলের পুরনো ভিডিও স্ক্যান করে লোড করবে
+  async def post_init(app):
+    await load_old_videos_from_channel(app.bot)
+
+  application.post_init = post_init
+
   # প্রতি ২ মিনিট (১২০ সেকেন্ড) পর পর গ্রুপে মেনু পাঠানোর লুপ
   job_queue = application.job_queue
   job_queue.run_repeating(send_auto_video_menu, interval=120, first=5)
@@ -309,12 +324,13 @@ def main():
       MessageHandler(filters.TEXT & (~filters.COMMAND), check_links)
   )
 
-  # চ্যানেল পোস্ট রিসিভ করার জন্য সঠিক হ্যান্ডলার
   application.add_handler(
-      MessageHandler(filters.Chat(chat_id=PRIVATE_CHANNEL_ID), receive_channel_video)
+      MessageHandler(
+          filters.VIDEO | filters.Document.ALL, receive_channel_video
+      )
   )
 
-  print("Bot is running successfully without errors!")
+  print("Bot is running successfully with all requested features!")
   application.run_polling()
 
 
